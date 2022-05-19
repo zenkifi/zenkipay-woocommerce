@@ -1,0 +1,87 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.znk_disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.znk-onboarding-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.znk-img {
+    height: 150px;
+}
+
+.znk-coin-container {
+    width: 50%;
+    display: flex;
+    align-items: center;
+    justify-items: center;
+}
+
+.znk-coin {
+    width: 120px;
+}
+
+.znk-bit {
+    animation: roll-bit 3s 1s ease both;
+}
+
+.znk-usd {
+    animation: roll-usd 3s 2s ease both;
+}
+
+/* Media querys */
+
+@media screen and (max-width: 850px) {
+    .znk-coin-container {
+        display: none;
+    }
+
+    .znk-img {
+        width: 100%;
+    }
+}
+
+/* Keyframes */
+
+@keyframes roll-bit {
+    0% {
+        opacity: 0;
+        right: 0;
+        transform: translateX(500px) rotate(720deg);
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(0px) rotate(0);
+    }
+}
+
+@keyframes roll-usd {
+    0% {
+        opacity: 0;
+        right: 0;
+        transform: translateX(500px) rotate(720deg);
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(-50px) rotate(0);
+    }
+}
