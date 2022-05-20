@@ -2,7 +2,7 @@
 # This file is distributed under the same license as the Zenkipay package.
 msgid ""
 msgstr ""
-"Project-Id-Version: Zenkipay 1.0.0\n"
+"Project-Id-Version: Zenkipay 1.1.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/zenkipay\n"
 "POT-Creation-Date: 2022-05-05 19:34:01+00:00\n"
 "PO-Revision-Date: 2022-05-05 14:38-0500\n"

@@ -2,7 +2,7 @@
 # This file is distributed under the same license as the Zenkipay package.
 msgid ""
 msgstr ""
-"Project-Id-Version: Zenkipay 1.0.0\n"
+"Project-Id-Version: Zenkipay 1.1.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/zenkipay\n"
 "POT-Creation-Date: 2022-05-05 19:39:27+00:00\n"
 "MIME-Version: 1.0\n"
@@ -16,7 +16,7 @@ msgstr ""
 msgid "Continue with Zenkipay"
 msgstr ""
 
-#. #-#-#-#-#  zenkipay.pot (Zenkipay 1.0.0)  #-#-#-#-#
+#. #-#-#-#-#  zenkipay.pot (Zenkipay 1.1.2)  #-#-#-#-#
 #. Plugin Name of the plugin/theme
 #: includes/class.znk_wc_payment_gateway.php:24
 #: includes/class.znk_wc_payment_gateway.php:36

@@ -50,8 +50,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         // This action hook saves the settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
-        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.0.0');
-        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.0.0', true);
+        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.1.2');
+        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.1.2', true);
         $this->load_scripts();
     }
 
@@ -215,8 +215,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         if (!is_checkout_pay_page()) {
             return;
         }
-        wp_enqueue_script('zenkipay_js_resource', $this->base_url . 'zenkipay/script/zenkipay.js', [], '1.0.0', true);
-        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/zenkipay-babel.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.0.0', true);
+        wp_enqueue_script('zenkipay_js_resource', $this->base_url . 'zenkipay/script/zenkipay.js', [], '1.1.2', true);
+        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/zenkipay-babel.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.1.2', true);
 
         $zenkipay_key = $this->zenkipay_key;
         if (get_query_var('order-pay')) {

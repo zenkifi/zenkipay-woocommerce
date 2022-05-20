@@ -7,7 +7,7 @@
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
  * Domain Path: /assets/languages/
- * Version: 1.0.0
+ * Version: 1.1.2
  */
 
 
