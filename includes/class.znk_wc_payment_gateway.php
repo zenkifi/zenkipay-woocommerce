@@ -11,7 +11,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 {
     public function __construct()
     {
-        $this->base_url = esc_url('https://dev-resources.zenki.fi/');
+        $this->base_url = esc_url('https://uat-resources.zenki.fi');
 
         $this->id = 'zenkipay'; // payment gateway plugin ID
         $this->icon = apply_filters('woocommerce_zenkipay_icon', plugins_url('./../assets/icons/logo.png', __FILE__));
@@ -50,8 +50,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         // This action hook saves the settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
-        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.1.2');
-        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.1.2', true);
+        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.2.0');
+        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.2.0', true);
         $this->load_scripts();
     }
 
@@ -215,8 +215,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         if (!is_checkout_pay_page()) {
             return;
         }
-        wp_enqueue_script('zenkipay_js_resource', $this->base_url . 'zenkipay/script/zenkipay.js', [], '1.1.2', true);
-        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/zenkipay-babel.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.1.2', true);
+        wp_enqueue_script('zenkipay_js_resource', $this->base_url . '/zenkipay/script/zenkipay.js', [], '1.2.0', true);
+        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.2.0', true);
 
         $zenkipay_key = $this->zenkipay_key;
         if (get_query_var('order-pay')) {
@@ -226,15 +226,17 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $txnref = sanitize_key('WOOC_' . $order_id . '_' . time());
             $currency = get_option('woocommerce_currency');
 
-            foreach ($order->get_items() as $item_id => $item) {
+            foreach ($order->get_items() as $item) {
                 // Get an instance of corresponding the WC_Product object
                 $product = $item->get_product();
                 $thumbnailUrl = wp_get_attachment_image_url($product->get_image_id());
                 $items[] = (object) [
-                    'itemId' => sanitize_key($item_id),
+                    'itemId' => $product->get_id(),
+                    'productName' => $product->get_name(),
+                    'productDescription' => $product->get_description(),
                     'quantity' => intval($item->get_quantity()),
                     'thumbnailUrl' => $thumbnailUrl ? esc_url($thumbnailUrl) : '',
-                    'price' => intval($product->get_price()),
+                    'price' => round($product->get_price(), 2),
                 ];
             }
 
@@ -295,7 +297,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
     public function getMerchantInfo()
     {
-        $url = 'https://dev-gateway.zenki.fi/public/v1/merchants/plugin/token';
+        $url = 'https://uat-gateway.zenki.fi/public/v1/merchants/plugin/token';
 
         $ch = curl_init();
         $payload = $this->zenkipay_key;

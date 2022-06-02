@@ -29,26 +29,28 @@
         purchaseData,
     };
 
+    console.log('purchaseOptions', purchaseOptions);
+
     zenkiPay.openModal(purchaseOptions, handleZenkipayEvents);
 
     function handleZenkipayEvents(error, data, details) {
         const events = {
-            'done': (data) => {
+            done: (data) => {
                 data.complete = '1';
                 sendPaymentRequestResponse(data);
             },
-            'cancel': (data) => {
+            cancel: (data) => {
                 setTimeout(redirectTo, 1000, cancelUrl);
-            }
+            },
         };
 
         const dataRequest = {
             order_id: storeOrderId,
-            complete: ''
+            complete: '',
         };
 
         if (error && error.postMsgType && error.postMsgType === 'error') {
-            dataRequest.complete = '0'
+            dataRequest.complete = '0';
             sendPaymentRequestResponse(dataRequest);
         } else if (details && details.postMsgType && events[details.postMsgType]) {
             events[details.postMsgType](dataRequest);
@@ -56,16 +58,14 @@
     }
 
     function sendPaymentRequestResponse(data) {
-        jQuery
-            .post(callbackUrl, data)
-            .success((result) => {
-                const response = JSON.parse(result);
-                const redirectUrl = response.redirect_url;
-                setTimeout(redirectTo, 1000, redirectUrl);
-            });
-    };
+        jQuery.post(callbackUrl, data).success((result) => {
+            const response = JSON.parse(result);
+            const redirectUrl = response.redirect_url;
+            setTimeout(redirectTo, 1000, redirectUrl);
+        });
+    }
 
     function redirectTo(url) {
         location.href = url;
     }
-})()
+})();
