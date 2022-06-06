@@ -9,10 +9,10 @@ if (!defined('ABSPATH')) {
  */
 class WC_Zenki_Gateway extends WC_Payment_Gateway
 {
+    protected $GATEWAY_NAME = 'Zenkipay';
+
     public function __construct()
     {
-        $this->base_url = esc_url('https://uat-resources.zenki.fi');
-
         $this->id = 'zenkipay'; // payment gateway plugin ID
         $this->icon = apply_filters('woocommerce_zenkipay_icon', plugins_url('./../assets/icons/logo.png', __FILE__));
         $this->has_fields = false;
@@ -39,20 +39,22 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->description =
             __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>';
         $this->enabled = $this->get_option('enabled');
-        $this->testmode = 'yes' === $this->get_option('testmode');
+        $this->testmode = $this->get_option('testmode') === 'yes';
 
         $this->test_plugin_key = sanitize_text_field($this->get_option('test_plugin_key'));
         $this->live_plugin_key = sanitize_text_field($this->get_option('live_plugin_key'));
         $this->zenkipay_key = $this->testmode ? $this->test_plugin_key : $this->live_plugin_key;
 
+        $this->base_url = $this->testmode ? 'https://dev-gateway.zenki.fi' : 'https://uat-gateway.zenki.fi';
+        $this->base_url_js = $this->testmode ? 'https://dev-resources.zenki.fi' : 'https://uat-resources.zenki.fi';
+
+        add_action('wp_enqueue_scripts', [$this, 'payment_scripts']);
         add_action('admin_notices', [$this, 'admin_notices']);
-        add_action('woocommerce_api_wc_zenkipay_gateway', [$this, 'zenkipay_verify_payment']);
 
         // This action hook saves the settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
-        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.2.0');
-        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.2.0', true);
-        $this->load_scripts();
+        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.3.0');
+        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.3.0', true);
     }
 
     /**
@@ -140,41 +142,21 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
      */
     public function process_payment($order_id)
     {
-        $order = wc_get_order($order_id);
+        $zenkipay_order_id = $_POST['zenkipay_order_id'];
+
+        $order = new WC_Order($order_id);
+        $order->payment_complete();
+        $order->add_order_note(sprintf("%s payment completed with Zenkipay Order Id of '%s'", $this->GATEWAY_NAME, $zenkipay_order_id));
+        $order->save();
+
+        update_post_meta($order->get_id(), '_zenkipay_order_id', $zenkipay_order_id);
+
+        $this->updateZenkipayOrder($zenkipay_order_id, $order_id);
 
         return [
             'result' => 'success',
-            'redirect' => $order->get_checkout_payment_url(true),
+            'redirect' => $this->get_return_url($order),
         ];
-    }
-
-    /**
-     * Verify payment made on the checkout page
-     *
-     * @return void
-     */
-    public function zenkipay_verify_payment()
-    {
-        if (isset($_POST['order_id']) && isset($_POST['complete'])) {
-            $complete = sanitize_text_field($_POST['complete']);
-            $order_id = sanitize_key($_POST['order_id']);
-            $order = wc_get_order($_POST['order_id']);
-
-            if ($complete == '1') {
-                $order->payment_complete();
-                wc_reduce_stock_levels($order_id);
-                $order->add_order_note('Payment processed and approved successfully.');
-            } else {
-                $order->update_status('failed', 'Payment not successful.');
-            }
-
-            WC()->cart->empty_cart();
-
-            $redirect_url = esc_url($this->get_return_url($order));
-            echo json_encode(['redirect_url' => $redirect_url]);
-        }
-
-        die();
     }
 
     /**
@@ -205,56 +187,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
     }
 
-    /**
-     * Loads (enqueue) static files (js & css) for the checkout page
-     *
-     * @return void
-     */
-    public function load_scripts()
-    {
-        if (!is_checkout_pay_page()) {
-            return;
-        }
-        wp_enqueue_script('zenkipay_js_resource', $this->base_url . '/zenkipay/script/zenkipay.js', [], '1.2.0', true);
-        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.2.0', true);
-
-        $zenkipay_key = $this->zenkipay_key;
-        if (get_query_var('order-pay')) {
-            $order_key = sanitize_key(urldecode($_REQUEST['key']));
-            $order_id = sanitize_key(absint(get_query_var('order-pay')));
-            $order = wc_get_order($order_id);
-            $txnref = sanitize_key('WOOC_' . $order_id . '_' . time());
-            $currency = get_option('woocommerce_currency');
-
-            foreach ($order->get_items() as $item) {
-                // Get an instance of corresponding the WC_Product object
-                $product = $item->get_product();
-                $thumbnailUrl = wp_get_attachment_image_url($product->get_image_id());
-                $items[] = (object) [
-                    'itemId' => $product->get_id(),
-                    'productName' => $product->get_name(),
-                    'productDescription' => $product->get_description(),
-                    'quantity' => intval($item->get_quantity()),
-                    'thumbnailUrl' => $thumbnailUrl ? esc_url($thumbnailUrl) : '',
-                    'price' => round($product->get_price(), 2),
-                ];
-            }
-
-            if (sanitize_key($order->get_order_key()) == $order_key) {
-                $cancel_url = esc_url($order->get_cancel_order_url());
-                $total_amount = intval($order->get_total());
-                $country = $order->get_billing_country();
-
-                $payment_args = compact('order_id', 'cancel_url', 'total_amount', 'zenkipay_key', 'currency', 'items', 'country');
-                $payment_args['cb_url'] = esc_url(WC()->api_request_url('WC_Zenkipay_Gateway'));
-            }
-
-            update_post_meta($order_id, '_znk_payment_txn_ref', $txnref);
-        }
-
-        wp_localize_script('zenkipay_js_woo', 'zenkipay_payment_args', $payment_args);
-    }
-
     public function process_admin_options()
     {
         $post_data = $this->get_post_data();
@@ -275,18 +207,17 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             return;
         }
 
-        if (!$this->validateSettings()) {
+        if (!$this->validateZenkipayKey()) {
             return;
         }
 
         return parent::process_admin_options();
     }
 
-    public function validateSettings()
+    protected function validateZenkipayKey()
     {
-        $response = $this->getMerchantInfo();
-
-        if (!isset($response['access_token'])) {
+        $result = $this->getAccessToken();
+        if (!array_key_exists('access_token', $result)) {
             $settings = new WC_Admin_Settings();
             $settings->add_error(' Something went wrong while saving this configuration, your "Zenkipay key" is incorrect.');
             return false;
@@ -295,11 +226,10 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         return true;
     }
 
-    public function getMerchantInfo()
+    public function getAccessToken()
     {
-        $url = 'https://uat-gateway.zenki.fi/public/v1/merchants/plugin/token';
-
         $ch = curl_init();
+        $url = $this->base_url . '/public/v1/merchants/plugin/token';
         $payload = $this->zenkipay_key;
 
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
@@ -309,16 +239,99 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         $result = curl_exec($ch);
-        $response = null;
+
         if ($result === false) {
             $this->logger->error('Curl error ' . curl_error($ch));
-            return $response;
+            return [];
         }
 
-        $response = json_decode($result, true);
-
         curl_close($ch);
-        return $response;
+
+        return json_decode($result, true);
+    }
+
+    protected function updateZenkipayOrder($zenkipay_order_id, $order_id)
+    {
+        try {
+            $token_result = $this->getAccessToken();
+            if (!array_key_exists('access_token', $token_result)) {
+                $this->logger->error('Zenkipay - updateZenkipayOrder: Error al obtener access_token');
+                return false;
+            }
+
+            $url = $this->base_url . '/v1/orders/' . $zenkipay_order_id;
+            $payload = json_encode(['zenkipayKey' => $this->zenkipay_key, 'merchantOrderId' => $order_id]);
+            $headers = ['Accept: */*', 'Content-Type: application/json', 'Authorization: Bearer ' . $token_result['access_token']];
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
+            $result = curl_exec($ch);
+
+            $this->logger->info('#updateZenkipayOrder => ' . $result);
+
+            if ($result === false) {
+                $this->logger->error('Curl error ' . curl_errno($ch) . ': ' . curl_error($ch));
+                return false;
+            }
+
+            curl_close($ch);
+
+            return true;
+        } catch (Exception $e) {
+            $this->logger->error('Zenkipay - updateZenkipayOrder: ' . $e->getMessage());
+            $this->logger->error('Zenkipay - updateZenkipayOrder: ' . $e->getTraceAsString());
+
+            return false;
+        }
+    }
+
+    /**
+     * payment_scripts function.
+     *
+     * Outputs scripts used for openpay payment
+     *
+     * @access public
+     */
+    public function payment_scripts()
+    {
+        if (!is_checkout()) {
+            return;
+        }
+
+        global $woocommerce;
+
+        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], '1.3.0', true);
+        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.3.0', true);
+
+        $items = [];
+        foreach ($woocommerce->cart->get_cart() as $cart_item) {
+            // Get an instance of corresponding the WC_Product object
+            $product = wc_get_product($cart_item['product_id']);
+            $thumbnailUrl = wp_get_attachment_image_url($product->get_image_id());
+            $items[] = (object) [
+                'itemId' => $cart_item['product_id'],
+                'productName' => $product->get_title(),
+                'productDescription' => $product->get_description(),
+                'quantity' => (int) $cart_item['quantity'],
+                'thumbnailUrl' => $thumbnailUrl ? esc_url($thumbnailUrl) : '',
+                'price' => round($product->get_price(), 2),
+            ];
+        }
+
+        $payment_args = [
+            'zenkipay_key' => $this->zenkipay_key,
+            'country' => $woocommerce->cart->get_customer()->get_billing_country(),
+            'total_amount' => $woocommerce->cart->total,
+            'currency' => get_woocommerce_currency(),
+            'items' => $items,
+        ];
+
+        wp_localize_script('zenkipay_js_woo', 'zenkipay_payment_args', $payment_args);
     }
 }
 ?>
