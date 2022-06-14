@@ -53,8 +53,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         // This action hook saves the settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
-        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.3.0');
-        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.3.0', true);
+        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.3.1');
+        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.3.1', true);
     }
 
     /**
@@ -178,9 +178,9 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             echo sprintf(
                 __(
                     'Zenkipay is almost ready. Provide your Zenki "Pay Button" Zenkipay key <a href="%s">here</a>. Or get your Zenkipay keys <a href="https://zenki.fi/" target="_blank">here</a>.',
-                    'zenkipay',
+                    'zenkipay'
                 ),
-                esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=zenkipay')),
+                esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=zenkipay'))
             );
             echo wp_kses_post('</p></div>');
             return;
@@ -197,6 +197,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $mode = 'test';
         }
 
+        $this->base_url = $mode == 'test' ? 'https://dev-gateway.zenki.fi' : 'https://uat-gateway.zenki.fi';
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
 
         $env = $mode == 'live' ? 'Production' : 'Sandbox';
@@ -305,8 +306,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         global $woocommerce;
 
-        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], '1.3.0', true);
-        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.3.0', true);
+        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], '1.3.1', true);
+        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.3.1', true);
 
         $items = [];
         foreach ($woocommerce->cart->get_cart() as $cart_item) {
