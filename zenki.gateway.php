@@ -1,13 +1,12 @@
 <?php
 /*
  * Plugin Name: Zenkipay
- * Plugin URI:
+ * Plugin URI: https://github.com/zenkifi/zenkipay-woocommerce
  * Description: Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100% secured.
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Domain Path: /assets/languages/
- * Version: 1.3.1
+ * Version: 1.3.2
  */
 
 if (!defined('ABSPATH')) {

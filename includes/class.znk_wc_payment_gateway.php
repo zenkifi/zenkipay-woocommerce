@@ -1,5 +1,15 @@
 <?php
 
+/*
+ * Plugin Name: Zenkipay
+ * Plugin URI: https://github.com/zenkifi/zenkipay-woocommerce
+ * Description: Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100% secured.
+ * Author: Zenki
+ * Author URI: https://zenki.fi/
+ * Text Domain: zenkipay
+ * Version: 1.3.2
+ */
+
 if (!defined('ABSPATH')) {
     exit();
 }
@@ -14,7 +24,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     public function __construct()
     {
         $this->id = 'zenkipay'; // payment gateway plugin ID
-        $this->icon = apply_filters('woocommerce_zenkipay_icon', plugins_url('./../assets/icons/logo.png', __FILE__));
         $this->has_fields = false;
         $this->order_button_text = __('Continue with Zenkipay', 'zenkipay');
 
@@ -37,7 +46,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         $this->title = __('Zenkipay', 'zenkipay');
         $this->description =
-            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>';
+            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
         $this->enabled = $this->get_option('enabled');
         $this->testmode = $this->get_option('testmode') === 'yes';
 
@@ -53,8 +62,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         // This action hook saves the settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
-        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.3.1');
-        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.3.1', true);
+        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.3.2');
+        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.3.2', true);
     }
 
     /**
@@ -124,15 +133,15 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
     public function payment_fields()
     {
+        $this->logo = plugins_url('assets/icons/logo.png', __DIR__);
         if ($this->description) {
             // We add instructions for test mode.
             if ($this->testmode) {
-                $this->description .= __(' TEST MODE.');
+                $this->description .= __(' (TEST MODE).');
                 $this->description = trim($this->description);
             }
-            // Display the description with <p> tags.
-            echo wpautop(wp_kses_post($this->description));
         }
+        include_once ZNK_WC_DIR_PATH . 'templates/payment.php';
     }
 
     /**
@@ -306,8 +315,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         global $woocommerce;
 
-        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], '1.3.1', true);
-        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.3.1', true);
+        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], '1.3.2', true);
+        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.3.2', true);
 
         $items = [];
         foreach ($woocommerce->cart->get_cart() as $cart_item) {
