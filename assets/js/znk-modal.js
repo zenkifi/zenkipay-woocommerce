@@ -1,71 +1,69 @@
-(() => {
-    //URLs
-    var callbackUrl = zenkipay_payment_args.cb_url,
-        cancelUrl = zenkipay_payment_args.cancel_url;
+jQuery(document).ready(function () {
+    var $form = jQuery('form.checkout,form#order_review');
 
-    //ORDER
-    var totalAmount = zenkipay_payment_args.total_amount,
-        currency = zenkipay_payment_args.currency,
-        items = zenkipay_payment_args.items,
-        storeOrderId = zenkipay_payment_args.order_id,
-        country = zenkipay_payment_args.country;
-
-    //COMMOS
+    // Zenkipay params
+    var purchaseData = zenkipay_payment_args.purchase_data;
+    var zenkipaySignature = zenkipay_payment_args.zenkipay_signature;
     var zenkipayKey = zenkipay_payment_args.zenkipay_key;
-
-    var purchaseData = {
-        country: country,
-        currency: currency,
-        amount: totalAmount * 1,
-        items: items,
-    };
 
     var purchaseOptions = {
         style: {
             shape: 'square',
             theme: 'light',
         },
-        zenkipayKey: zenkipayKey,
+        zenkipayKey,
         purchaseData,
+        zenkipaySignature,
     };
 
-    zenkiPay.openModal(purchaseOptions, handleZenkipayEvents);
+    jQuery('form#order_review').submit(function () {
+        console.log('form#order_review');
+        if (jQuery('input[name=payment_method]:checked').val() !== 'zenkipay') {
+            return true;
+        }
+
+        openpayFormHandler();
+        return false;
+    });
+
+    // Bind to the checkout_place_order event to add the token
+    jQuery('form.checkout').bind('checkout_place_order', function (e) {
+        console.log('form.checkout');
+        if (jQuery('input[name=payment_method]:checked').val() !== 'zenkipay') {
+            return true;
+        }
+
+        console.log('purchaseOptions', purchaseOptions);
+
+        // Pass if we have a token
+        if ($form.find('[name=zenkipay_order_id]').length) {
+            console.log('zenkipay_order_id = true');
+            return true;
+        }
+
+        openpayFormHandler();
+
+        // Prevent the form from submitting with the default action
+        return false;
+    });
+
+    function openpayFormHandler() {
+        zenkiPay.openModal(purchaseOptions, handleZenkipayEvents);
+    }
 
     function handleZenkipayEvents(error, data, details) {
-        const events = {
-            'done': (data) => {
-                data.complete = '1';
-                sendPaymentRequestResponse(data);
-            },
-            'cancel': (data) => {
-                setTimeout(redirectTo, 1000, cancelUrl);
-            }
-        };
+        if (!error && details.postMsgType === 'done') {
+            var zenkipayOrderId = data.orderId;
+            $form.append('<input type="hidden" name="zenkipay_order_id" value="' + zenkipayOrderId + '" />');
+            $form.submit();
+        }
 
-        const dataRequest = {
-            order_id: storeOrderId,
-            complete: ''
-        };
-
-        if (error && error.postMsgType && error.postMsgType === 'error') {
-            dataRequest.complete = '0'
-            sendPaymentRequestResponse(dataRequest);
-        } else if (details && details.postMsgType && events[details.postMsgType]) {
-            events[details.postMsgType](dataRequest);
+        if (error && details.postMsgType === 'error') {
+            var errorMsg = 'An unexpected error occurred';
+            jQuery('.woocommerce_error, .woocommerce-error, .woocommerce-message, .woocommerce_message').remove();
+            jQuery('#openpay_cc')
+                .closest('div')
+                .before('<ul style="background-color: #e2401c; color: #fff;" class="woocommerce_error woocommerce-error"><li> ERROR ' + errorMsg + '</li></ul>');
         }
     }
-
-    function sendPaymentRequestResponse(data) {
-        jQuery
-            .post(callbackUrl, data)
-            .success((result) => {
-                const response = JSON.parse(result);
-                const redirectUrl = response.redirect_url;
-                setTimeout(redirectTo, 1000, redirectUrl);
-            });
-    };
-
-    function redirectTo(url) {
-        location.href = url;
-    }
-})()
+});
