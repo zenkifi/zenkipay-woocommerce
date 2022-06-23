@@ -7,7 +7,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.4.0
+ * Version: 1.4.2
  */
 
 if (!defined('ABSPATH')) {
@@ -22,7 +22,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
     protected $rsa_private_key = '';
-    protected $plugin_version = '1.4.0';
+    protected $plugin_version = '1.4.2';
 
     public function __construct()
     {
@@ -44,7 +44,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->description =
             __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
 
-        $this->enabled = strcmp($this->settings['enabled'], 'yes') == 0;
+        $this->enabled = $this->settings['enabled'];
         $this->test_mode = strcmp($this->settings['test_mode'], 'yes') == 0;
         $this->test_plugin_key = $this->settings['test_plugin_key'];
         $this->live_plugin_key = $this->settings['live_plugin_key'];
