@@ -1,15 +1,5 @@
 <?php
 
-/*
- * Plugin Name: Zenkipay
- * Plugin URI: https://github.com/zenkifi/zenkipay-woocommerce
- * Description: Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100% secured.
- * Author: Zenki
- * Author URI: https://zenki.fi/
- * Text Domain: zenkipay
- * Version: 1.4.0
- */
-
 // if uninstall.php is not called by WordPress, die
 if (!defined('WP_UNINSTALL_PLUGIN')) {
     die();
