@@ -2,18 +2,9 @@ jQuery(document).ready(function () {
     var $form = jQuery('form.checkout,form#order_review');
 
     // Zenkipay params
-    var amount = zenkipay_payment_args.total_amount;
-    var currency = zenkipay_payment_args.currency;
-    var items = zenkipay_payment_args.items;
-    var country = zenkipay_payment_args.country;
+    var purchaseData = zenkipay_payment_args.purchase_data;
+    var zenkipaySignature = zenkipay_payment_args.zenkipay_signature;
     var zenkipayKey = zenkipay_payment_args.zenkipay_key;
-
-    var purchaseData = {
-        amount,
-        country,
-        currency,
-        items,
-    };
 
     var purchaseOptions = {
         style: {
@@ -22,6 +13,7 @@ jQuery(document).ready(function () {
         },
         zenkipayKey,
         purchaseData,
+        zenkipaySignature,
     };
 
     jQuery('form#order_review').submit(function () {

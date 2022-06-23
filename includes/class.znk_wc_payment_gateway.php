@@ -7,7 +7,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.3.2
+ * Version: 1.4.0
  */
 
 if (!defined('ABSPATH')) {
@@ -20,6 +20,9 @@ if (!defined('ABSPATH')) {
 class WC_Zenki_Gateway extends WC_Payment_Gateway
 {
     protected $GATEWAY_NAME = 'Zenkipay';
+    protected $test_mode = true;
+    protected $rsa_private_key = '';
+    protected $plugin_version = '1.4.0';
 
     public function __construct()
     {
@@ -28,13 +31,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->order_button_text = __('Continue with Zenkipay', 'zenkipay');
 
         $this->method_title = __('Zenkipay', 'zenkipay');
-        $this->method_description =
-            __('Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') .
-            ' <a href="' .
-            esc_url('https://zenki.fi/') .
-            '" target="_blanck">' .
-            __('secured', 'zenkipay') .
-            '</a>';
 
         // Gateways can support subscriptions, refunds, saved payment methods,
         // but in this case we begin with simple payments
@@ -47,23 +43,24 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->title = __('Zenkipay', 'zenkipay');
         $this->description =
             __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
-        $this->enabled = $this->get_option('enabled');
-        $this->testmode = $this->get_option('testmode') === 'yes';
 
-        $this->test_plugin_key = sanitize_text_field($this->get_option('test_plugin_key'));
-        $this->live_plugin_key = sanitize_text_field($this->get_option('live_plugin_key'));
-        $this->zenkipay_key = $this->testmode ? $this->test_plugin_key : $this->live_plugin_key;
+        $this->enabled = strcmp($this->settings['enabled'], 'yes') == 0;
+        $this->test_mode = strcmp($this->settings['test_mode'], 'yes') == 0;
+        $this->test_plugin_key = $this->settings['test_plugin_key'];
+        $this->live_plugin_key = $this->settings['live_plugin_key'];
+        $this->zenkipay_key = $this->test_mode ? $this->test_plugin_key : $this->live_plugin_key;
+        $this->rsa_private_key = $this->settings['rsa_private_key'];
 
-        $this->base_url = $this->testmode ? 'https://dev-gateway.zenki.fi' : 'https://uat-gateway.zenki.fi';
-        $this->base_url_js = $this->testmode ? 'https://dev-resources.zenki.fi' : 'https://uat-resources.zenki.fi';
+        $this->base_url = $this->test_mode ? 'https://dev-gateway.zenki.fi' : 'https://uat-gateway.zenki.fi';
+        $this->base_url_js = $this->test_mode ? 'https://dev-resources.zenki.fi' : 'https://uat-resources.zenki.fi';
 
         add_action('wp_enqueue_scripts', [$this, 'payment_scripts']);
         add_action('admin_notices', [$this, 'admin_notices']);
 
         // This action hook saves the settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
-        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], '1.3.2');
-        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], '1.3.2', true);
+        wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], $this->plugin_version);
+        wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], $this->plugin_version, true);
     }
 
     /**
@@ -102,7 +99,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 'description' => '',
                 'default' => 'yes',
             ],
-            'testmode' => [
+            'test_mode' => [
                 'title' => __('Test mode', 'zenkipay'),
                 'label' => __('Enable test mode', 'zenkipay'),
                 'type' => 'checkbox',
@@ -125,8 +122,15 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             'live_plugin_key' => [
                 'title' => __('Production Zenkipay key', 'zenkipay'),
                 'type' => 'text',
-                'description' => __('Need a key? Create your Zenkipay account', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('here', 'zenkipay') . '</a>',
+                'description' =>
+                    __('<b>Need a key?</b> Create your Zenkipay account', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('here', 'zenkipay') . '</a>',
                 'default' => '',
+            ],
+            'rsa_private_key' => [
+                'title' => __('RSA private key', 'zenkipay'),
+                'type' => 'textarea',
+                'css' => 'width: 600px; height: 600px;',
+                'description' => __('Copy and paste your private key here with <b><i>cat /path/to/your/private-key.pem | pbcopy</i></b>', 'zenkipay'),
             ],
         ];
     }
@@ -136,7 +140,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->logo = plugins_url('assets/icons/logo.png', __DIR__);
         if ($this->description) {
             // We add instructions for test mode.
-            if ($this->testmode) {
+            if ($this->test_mode) {
                 $this->description .= __(' (TEST MODE).');
                 $this->description = trim($this->description);
             }
@@ -182,7 +186,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         /**
          * Check if plugin key is provided
          */
-        if ((!$this->live_plugin_key && !$this->testmode) || (!$this->test_plugin_key && $this->testmode)) {
+        if ((!$this->live_plugin_key && !$this->test_mode) || (!$this->test_plugin_key && $this->test_mode)) {
             echo wp_kses_post('<div class="error"><p>');
             echo sprintf(
                 __(
@@ -198,44 +202,82 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
     public function process_admin_options()
     {
+        parent::process_admin_options();
+
         $post_data = $this->get_post_data();
         $mode = 'live';
-        $testmode_index = 'woocommerce_' . $this->id . '_testmode';
+        $test_mode_index = 'woocommerce_' . $this->id . '_test_mode';
+        $plain_rsa_private_key = $post_data['woocommerce_' . $this->id . '_rsa_private_key'];
 
-        if (isset($post_data[$testmode_index]) && $post_data[$testmode_index] == '1') {
+        if (isset($post_data[$test_mode_index]) && $post_data[$test_mode_index] == '1') {
             $mode = 'test';
         }
 
         $this->base_url = $mode == 'test' ? 'https://dev-gateway.zenki.fi' : 'https://uat-gateway.zenki.fi';
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
+        $this->test_mode = $mode == 'test';
 
-        $env = $mode == 'live' ? 'Production' : 'Sandbox';
+        $env = $mode == 'live' ? 'Production' : 'Test';
+
+        $settings = new WC_Admin_Settings();
 
         if ($this->zenkipay_key == '') {
-            $settings = new WC_Admin_Settings();
+            $this->settings['enabled'] = '0';
             $settings->add_error('You need to enter "' . $env . ' Zenkipay key" if you want to use this plugin in this mode.');
-            return;
         }
 
         if (!$this->validateZenkipayKey()) {
-            return;
+            $this->settings['enabled'] = '0';
+            $settings->add_error('Something went wrong while saving this configuration, your "Zenkipay key" is incorrect.');
         }
 
-        return parent::process_admin_options();
+        if (!$this->validateRSAPrivateKey($plain_rsa_private_key)) {
+            $this->settings['enabled'] = '0';
+            $settings->add_error('Invalid RSA private key has been provided.');
+        }
+
+        return update_option($this->get_option_key(), apply_filters('woocommerce_settings_api_sanitized_fields_' . $this->id, $this->settings), 'yes');
     }
 
+    /**
+     * Checks if the plain RSA private key is valid
+     *
+     * @param string $plain_rsa_private_key Plain RSA private key
+     *
+     * @return boolean
+     */
+    protected function validateRSAPrivateKey(string $plain_rsa_private_key)
+    {
+        $private_ket = openssl_pkey_get_private($plain_rsa_private_key);
+        $public_key = openssl_pkey_get_details($private_ket);
+
+        if (is_array($public_key) && isset($public_key['key'])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if the Zenkipay key is valid
+     *
+     * @return boolean
+     */
     protected function validateZenkipayKey()
     {
         $result = $this->getAccessToken();
         if (!array_key_exists('access_token', $result)) {
-            $settings = new WC_Admin_Settings();
-            $settings->add_error(' Something went wrong while saving this configuration, your "Zenkipay key" is incorrect.');
             return false;
         }
 
         return true;
     }
 
+    /**
+     * Get Zenkipay access token
+     *
+     * @return array
+     */
     public function getAccessToken()
     {
         $ch = curl_init();
@@ -260,6 +302,14 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         return json_decode($result, true);
     }
 
+    /**
+     * Updates Zenkipay's merchantOrderId after WooCommerce register the order
+     *
+     * @param mixed $zenkipay_order_id
+     * @param mixed $order_id
+     *
+     * @return boolean
+     */
     protected function updateZenkipayOrder($zenkipay_order_id, $order_id)
     {
         try {
@@ -315,8 +365,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         global $woocommerce;
 
-        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], '1.3.2', true);
-        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], '1.3.2', true);
+        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], $this->plugin_version, true);
+        wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], $this->plugin_version, true);
 
         $items = [];
         foreach ($woocommerce->cart->get_cart() as $cart_item) {
@@ -333,15 +383,40 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             ];
         }
 
-        $payment_args = [
-            'zenkipay_key' => $this->zenkipay_key,
+        $purchase_data = [
+            'amount' => $woocommerce->cart->total,
             'country' => $woocommerce->cart->get_customer()->get_billing_country(),
-            'total_amount' => $woocommerce->cart->total,
             'currency' => get_woocommerce_currency(),
             'items' => $items,
         ];
 
+        $payload = json_encode($purchase_data);
+        $this->logger->info('#payment_scripts $payload => ' . $payload);
+
+        $signature = $this->generateSignature($payload);
+        $this->logger->info('#payment_scripts $signature => ' . $signature);
+
+        $payment_args = [
+            'zenkipay_key' => $this->zenkipay_key,
+            'purchase_data' => $payload,
+            'zenkipay_signature' => $signature,
+        ];
+
         wp_localize_script('zenkipay_js_woo', 'zenkipay_payment_args', $payment_args);
+    }
+
+    /**
+     * Generates payload signature using the RSA private key
+     *
+     * @param string $payload Purchase data
+     *
+     * @return string
+     */
+    protected function generateSignature($payload)
+    {
+        $rsa_private_key = openssl_pkey_get_private($this->rsa_private_key);
+        openssl_sign($payload, $signature, $rsa_private_key, 'RSA-SHA256');
+        return base64_encode($signature);
     }
 }
 ?>
