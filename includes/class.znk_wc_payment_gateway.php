@@ -7,7 +7,6 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.4.2
  */
 
 if (!defined('ABSPATH')) {
@@ -22,7 +21,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
     protected $rsa_private_key = '';
-    protected $plugin_version = '1.4.2';
+    protected $plugin_version = '1.4.3';
 
     public function __construct()
     {
@@ -246,11 +245,18 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
      *
      * @return boolean
      */
-    protected function validateRSAPrivateKey(string $plain_rsa_private_key)
+    protected function validateRSAPrivateKey($plain_rsa_private_key)
     {
-        $private_ket = openssl_pkey_get_private($plain_rsa_private_key);
-        $public_key = openssl_pkey_get_details($private_ket);
+        if (empty($plain_rsa_private_key)) {
+            return false;
+        }
 
+        $private_key = openssl_pkey_get_private($plain_rsa_private_key);
+        if (!is_resource($private_key)) {
+            return false;
+        }
+
+        $public_key = openssl_pkey_get_details($private_key);
         if (is_array($public_key) && isset($public_key['key'])) {
             return true;
         }
@@ -259,7 +265,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     }
 
     /**
-     * Check if the Zenkipay key is valid
+     * Checks if the Zenkipay key is valid
      *
      * @return boolean
      */

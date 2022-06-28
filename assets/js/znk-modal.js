@@ -13,7 +13,9 @@ jQuery(document).ready(function () {
         },
         zenkipayKey,
         purchaseData,
-        zenkipaySignature,
+        signature: {
+            zenkipaySignature,
+        },
     };
 
     jQuery('form#order_review').submit(function () {
