@@ -373,6 +373,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], $this->plugin_version, true);
         wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], $this->plugin_version, true);
+        wp_enqueue_style('zenkipay_checkout_style', plugins_url('assets/css/checkout-style.css', ZNK_WC_PLUGIN_FILE, [], $this->plugin_version, 'all'));
 
         $items = [];
         foreach ($woocommerce->cart->get_cart() as $cart_item) {
