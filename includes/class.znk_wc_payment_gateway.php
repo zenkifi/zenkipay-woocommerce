@@ -21,7 +21,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
     protected $rsa_private_key = '';
-    protected $plugin_version = '1.4.3';
+    protected $plugin_version = '1.4.4';
 
     public function __construct()
     {
@@ -96,7 +96,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 'label' => __('Enable Zenkipay', 'zenkipay'),
                 'type' => 'checkbox',
                 'description' => '',
-                'default' => 'yes',
+                'default' => 'no',
             ],
             'test_mode' => [
                 'title' => __('Test mode', 'zenkipay'),
@@ -397,10 +397,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         ];
 
         $payload = json_encode($purchase_data);
-        $this->logger->info('#payment_scripts $payload => ' . $payload);
-
         $signature = $this->generateSignature($payload);
-        $this->logger->info('#payment_scripts $signature => ' . $signature);
 
         $payment_args = [
             'zenkipay_key' => $this->zenkipay_key,
