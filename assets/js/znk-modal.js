@@ -19,7 +19,6 @@ jQuery(document).ready(function () {
     };
 
     jQuery('form#order_review').submit(function () {
-        console.log('form#order_review');
         if (jQuery('input[name=payment_method]:checked').val() !== 'zenkipay') {
             return true;
         }
@@ -30,16 +29,12 @@ jQuery(document).ready(function () {
 
     // Bind to the checkout_place_order event to add the token
     jQuery('form.checkout').bind('checkout_place_order', function (e) {
-        console.log('form.checkout');
         if (jQuery('input[name=payment_method]:checked').val() !== 'zenkipay') {
             return true;
         }
 
-        console.log('purchaseOptions', purchaseOptions);
-
         // Pass if we have a token
         if ($form.find('[name=zenkipay_order_id]').length) {
-            console.log('zenkipay_order_id = true');
             return true;
         }
 
