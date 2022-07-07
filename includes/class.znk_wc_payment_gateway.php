@@ -21,7 +21,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
     protected $rsa_private_key = '';
-    protected $plugin_version = '1.4.4';
+    protected $plugin_version = '1.4.5';
 
     public function __construct()
     {
@@ -338,7 +338,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
             $result = curl_exec($ch);
 
-            $this->logger->info('#updateZenkipayOrder => ' . $result);
+            $this->logger->info('Zenkipay - updateZenkipayOrder => ' . $result);
 
             if ($result === false) {
                 $this->logger->error('Curl error ' . curl_errno($ch) . ': ' . curl_error($ch));
@@ -380,13 +380,24 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             // Get an instance of corresponding the WC_Product object
             $product = wc_get_product($cart_item['product_id']);
             $thumbnailUrl = wp_get_attachment_image_url($product->get_image_id());
+            $product_type = $product->get_type();
+            $product_price = $product->get_price();
+            $desc = trim(preg_replace('/[[:^print:]]/', '', strip_tags($product->get_short_description())));
+
+            // If product has variations, price is taken from here
+            if ($product_type == 'variable') {
+                $variable_product = new WC_Product_Variation($cart_item['variation_id']);
+                $product_price = $variable_product->price;
+                $thumbnailUrl = wp_get_attachment_image_url($variable_product->image_id);
+            }
+
             $items[] = (object) [
                 'itemId' => $cart_item['product_id'],
                 'productName' => $product->get_title(),
-                'productDescription' => $product->get_description(),
+                'productDescription' => $desc,
                 'quantity' => (int) $cart_item['quantity'],
                 'thumbnailUrl' => $thumbnailUrl ? esc_url($thumbnailUrl) : '',
-                'price' => round($product->get_price(), 2),
+                'price' => round($product_price, 2),
             ];
         }
 
@@ -399,6 +410,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         $payload = json_encode($purchase_data);
         $signature = $this->generateSignature($payload);
+
+        $this->logger->info('Zenkipay - payload => ' . $payload);
 
         $payment_args = [
             'zenkipay_key' => $this->zenkipay_key,

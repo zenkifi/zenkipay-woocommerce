@@ -23,7 +23,7 @@ jQuery(document).ready(function () {
             return true;
         }
 
-        openpayFormHandler();
+        formHandler();
         return false;
     });
 
@@ -38,13 +38,13 @@ jQuery(document).ready(function () {
             return true;
         }
 
-        openpayFormHandler();
+        formHandler();
 
         // Prevent the form from submitting with the default action
         return false;
     });
 
-    function openpayFormHandler() {
+    function formHandler() {
         zenkiPay.openModal(purchaseOptions, handleZenkipayEvents);
     }
 
@@ -58,7 +58,7 @@ jQuery(document).ready(function () {
         if (error && details.postMsgType === 'error') {
             var errorMsg = 'An unexpected error occurred';
             jQuery('.woocommerce_error, .woocommerce-error, .woocommerce-message, .woocommerce_message').remove();
-            jQuery('#openpay_cc')
+            jQuery('#zenkipay-payment-container')
                 .closest('div')
                 .before('<ul style="background-color: #e2401c; color: #fff;" class="woocommerce_error woocommerce-error"><li> ERROR ' + errorMsg + '</li></ul>');
         }
