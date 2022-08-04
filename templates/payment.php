@@ -9,7 +9,7 @@
  */
 ?>
 
-<div class="row">    
+<div id="zenkipay-payment-container" class="row">    
     <div class="col-md-12">        
         <img class="zenkipay_logo" src="<?php echo $this->logo; ?>" alt="zenkipay" style="height: 50px; margin-top: 10px; float:left; object-fit: contain;" />        
     </div>    

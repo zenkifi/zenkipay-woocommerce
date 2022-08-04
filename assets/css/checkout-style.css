@@ -1,0 +1,10 @@
+.zenkipay_logo {
+    height: 50px;
+    margin-top: 10px;
+    float: left !important;
+    object-fit: contain;
+}
+
+.col-md-12 {
+    clear: both;
+}

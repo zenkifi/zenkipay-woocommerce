@@ -1,10 +1,11 @@
 jQuery(document).ready(function () {
-    var $form = jQuery('form.checkout,form#order_review');
-
     // Zenkipay params
     var purchaseData = zenkipay_payment_args.purchase_data;
-    var zenkipaySignature = zenkipay_payment_args.zenkipay_signature;
+    var purchaseSignature = zenkipay_payment_args.zenkipay_signature;
     var zenkipayKey = zenkipay_payment_args.zenkipay_key;
+    var callbackUrl = zenkipay_payment_args.cb_url;
+    var failedUrl = zenkipay_payment_args.failed_url;
+    var storeOrderId = zenkipay_payment_args.order_id;
 
     var purchaseOptions = {
         style: {
@@ -13,54 +14,34 @@ jQuery(document).ready(function () {
         },
         zenkipayKey,
         purchaseData,
-        signature: {
-            zenkipaySignature,
-        },
+        purchaseSignature,
     };
 
-    jQuery('form#order_review').submit(function () {
-        if (jQuery('input[name=payment_method]:checked').val() !== 'zenkipay') {
-            return true;
-        }
+    formHandler();
 
-        openpayFormHandler();
-        return false;
-    });
-
-    // Bind to the checkout_place_order event to add the token
-    jQuery('form.checkout').bind('checkout_place_order', function (e) {
-        if (jQuery('input[name=payment_method]:checked').val() !== 'zenkipay') {
-            return true;
-        }
-
-        // Pass if we have a token
-        if ($form.find('[name=zenkipay_order_id]').length) {
-            return true;
-        }
-
-        openpayFormHandler();
-
-        // Prevent the form from submitting with the default action
-        return false;
-    });
-
-    function openpayFormHandler() {
+    function formHandler() {
         zenkiPay.openModal(purchaseOptions, handleZenkipayEvents);
     }
 
     function handleZenkipayEvents(error, data, details) {
-        if (!error && details.postMsgType === 'done') {
-            var zenkipayOrderId = data.orderId;
-            $form.append('<input type="hidden" name="zenkipay_order_id" value="' + zenkipayOrderId + '" />');
-            $form.submit();
-        }
+        console.log('handleZenkipayEvents error', error);
 
         if (error && details.postMsgType === 'error') {
-            var errorMsg = 'An unexpected error occurred';
-            jQuery('.woocommerce_error, .woocommerce-error, .woocommerce-message, .woocommerce_message').remove();
-            jQuery('#openpay_cc')
-                .closest('div')
-                .before('<ul style="background-color: #e2401c; color: #fff;" class="woocommerce_error woocommerce-error"><li> ERROR ' + errorMsg + '</li></ul>');
+            var payload = { order_id: storeOrderId, complete: '0' };
+            sendPaymentRequest(payload);
+            return;
         }
+
+        if ((!error && details.postMsgType === 'close') || details.postMsgType === 'cancel') {
+            location.href = callbackUrl;
+            return;
+        }
+    }
+
+    function sendPaymentRequest(data) {
+        jQuery.post(failedUrl, data).success((result) => {
+            const response = JSON.parse(result);
+            location.href = response.redirect_url;
+        });
     }
 });
