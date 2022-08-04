@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.4.5
+ * Version: 1.6.0
  */
 
 if (!defined('ABSPATH')) {
@@ -55,3 +55,43 @@ function zenkipay_init_gateway_class()
         return $gateways;
     }
 }
+
+add_action(
+    'save_post_shop_order',
+    function (int $postId, \WP_Post $post, bool $update) {
+        $logger = wc_get_logger();
+
+        // Ignore order (post) creation
+        if ($update !== true || !is_admin()) {
+            return;
+        }
+
+        // Here comes your code...
+        $order = new WC_Order($postId);
+        $logger->info('Zenkipay - order_id => ' . $order->get_id());
+
+        $payment_method = $order->get_payment_method();
+        $logger->info('Zenkipay - payment_method => ' . $payment_method);
+        // Checks if the order was pay with zenkipay
+        if ($payment_method !== 'zenkipay') {
+            return;
+        }
+
+        // Get the meta data in an unprotected array
+        $zenkipay_order_id = $order->get_meta('_zenkipay_order_id');
+        $tracking_number = $order->get_meta('zenkipay_tracking_number');
+        $logger->info('Zenkipay - zenkipay_order_id => ' . $zenkipay_order_id);
+        $logger->info('Zenkipay - tracking_number => ' . $tracking_number);
+
+        // Checks if we hace the required date to send the tracking number to Zenkipay
+        if (empty($zenkipay_order_id) || empty($tracking_number)) {
+            return;
+        }
+
+        $data = [['orderId' => $zenkipay_order_id, 'merchantOrderId' => $order->get_id(), 'trackingId' => $tracking_number]];
+        $zenkipay = new WC_Zenki_Gateway();
+        $zenkipay->handleTrackingNumber($data);
+    },
+    10,
+    3
+);

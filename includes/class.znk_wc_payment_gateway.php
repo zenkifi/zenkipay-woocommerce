@@ -1,35 +1,36 @@
 <?php
 
-/*
- * Plugin Name: Zenkipay
- * Plugin URI: https://github.com/zenkifi/zenkipay-woocommerce
- * Description: Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100% secured.
- * Author: Zenki
- * Author URI: https://zenki.fi/
- * Text Domain: zenkipay
+/**
+ * Main Zenki Gateway Class
+ *
+ * @package Zenkipay/Gateways
+ * @author Zenki
+ *
  */
 
 if (!defined('ABSPATH')) {
     exit();
 }
 
-/**
- * Main Zenki Gateway Class
- */
+require_once ZNK_WC_DIR_PATH . 'lib/svix/init.php';
+
 class WC_Zenki_Gateway extends WC_Payment_Gateway
 {
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
-    protected $rsa_private_key = '';
-    protected $plugin_version = '1.4.5';
+    protected $rsa_private_key;
+    protected $webhook_signing_secret;
+    protected $plugin_version = '1.6.0';
+    protected $api_url;
+    protected $js_url;
 
     public function __construct()
     {
         $this->id = 'zenkipay'; // payment gateway plugin ID
         $this->has_fields = false;
         $this->order_button_text = __('Continue with Zenkipay', 'zenkipay');
-
         $this->method_title = __('Zenkipay', 'zenkipay');
+        $this->method_description = __('Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100% secured.', 'zenkipay');
 
         // Gateways can support subscriptions, refunds, saved payment methods,
         // but in this case we begin with simple payments
@@ -49,17 +50,108 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->live_plugin_key = $this->settings['live_plugin_key'];
         $this->zenkipay_key = $this->test_mode ? $this->test_plugin_key : $this->live_plugin_key;
         $this->rsa_private_key = $this->settings['rsa_private_key'];
+        $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
 
-        $this->base_url = $this->test_mode ? 'https://dev-gateway.zenki.fi' : 'https://uat-gateway.zenki.fi';
-        $this->base_url_js = $this->test_mode ? 'https://dev-resources.zenki.fi' : 'https://uat-resources.zenki.fi';
+        // URL's
+        $this->gateway_url = 'https://gateway.zenki.fi';
+        $this->api_url = 'https://api.zenki.fi';
+        $this->js_url = 'https://resources.zenki.fi';
 
-        add_action('wp_enqueue_scripts', [$this, 'payment_scripts']);
+        add_action('wp_enqueue_scripts', [$this, 'load_scripts']);
+        add_action('woocommerce_api_zenkipay_verify_payment', [$this, 'zenkipayVerifyPayment']);
+
         add_action('admin_notices', [$this, 'admin_notices']);
+        add_action('woocommerce_api_' . strtolower(get_class($this)), [$this, 'webhookHandler']);
 
         // This action hook saves the settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, [$this, 'process_admin_options']);
+
         wp_enqueue_style('zenkipay_style', plugins_url('assets/css/styles.css', ZNK_WC_PLUGIN_FILE), [], $this->plugin_version);
         wp_enqueue_script('zenkipay_js_input', plugins_url('assets/js/zenkipay-input-controller.js', ZNK_WC_PLUGIN_FILE), [], $this->plugin_version, true);
+    }
+
+    public function webhookHandler()
+    {
+        $payload = file_get_contents('php://input');
+        $response = [];
+        $header_response = 'HTTP/1.1 200 OK';
+        $this->logger->info('Zenkipay - Webhook => ' . $payload);
+
+        $headers = apache_request_headers();
+        $svix_headers = [];
+        foreach ($headers as $key => $value) {
+            $header = strtolower($key);
+            $svix_headers[$header] = $value;
+        }
+
+        try {
+            $secret = $this->webhook_signing_secret;
+            $wh = new \Svix\Webhook($secret);
+            $json = $wh->verify($payload, $svix_headers);
+
+            if ($json->transactionStatus == 'COMPLETED') {
+                $order_id = $json->merchantOrderId;
+
+                $order = new WC_Order($order_id);
+                $order->payment_complete();
+                $order->add_order_note(sprintf("%s payment completed with Zenkipay Order Id of '%s'", $this->GATEWAY_NAME, $json->orderId));
+
+                update_post_meta($order->get_id(), '_zenkipay_order_id', $json->orderId);
+                update_post_meta($order->get_id(), 'zenkipay_tracking_number', '');
+
+                wc_reduce_stock_levels($order_id);
+            }
+
+            $response = ['success' => true, 'order_id' => $order_id];
+        } catch (Exception $e) {
+            $header_response = 'HTTP/1.1 500 Internal Server Error';
+            $response = ['error' => true, 'msg' => $e->getMessage()];
+            $this->logger->error('Zenkipay - webhookHandler: ' . $e->getMessage());
+        }
+
+        header($header_response);
+        header('Content-type: application/json');
+        echo json_encode($response);
+        exit();
+    }
+
+    public function process_admin_options()
+    {
+        parent::process_admin_options();
+
+        $post_data = $this->get_post_data();
+        $mode = 'live';
+        $test_mode_index = 'woocommerce_' . $this->id . '_test_mode';
+        $plain_rsa_private_key = $post_data['woocommerce_' . $this->id . '_rsa_private_key'];
+
+        if (isset($post_data[$test_mode_index]) && $post_data[$test_mode_index] == '1') {
+            $mode = 'test';
+        }
+
+        $this->gateway_url = 'https://gateway.zenki.fi';
+        $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
+        $this->test_mode = $mode == 'test';
+
+        $env = $mode == 'live' ? 'Production' : 'Test';
+
+        $settings = new WC_Admin_Settings();
+
+        if ($this->zenkipay_key == '') {
+            $this->settings['enabled'] = '0';
+            $settings->add_error('You need to enter "' . $env . ' Zenkipay key" if you want to use this plugin in this mode.');
+        }
+
+        if (!$this->validateZenkipayKey()) {
+            $this->settings['enabled'] = '0';
+            $settings->add_error('Something went wrong while saving this configuration, your "Zenkipay key" is incorrect.');
+        }
+
+        if (!$this->validateRSAPrivateKey($plain_rsa_private_key)) {
+            $this->settings['enabled'] = '0';
+            $settings->add_error('Invalid RSA private key has been provided.');
+        }
+
+        return update_option($this->get_option_key(), apply_filters('woocommerce_settings_api_sanitized_fields_' . $this->id, $this->settings), 'yes');
     }
 
     /**
@@ -125,6 +217,12 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                     __('<b>Need a key?</b> Create your Zenkipay account', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('here', 'zenkipay') . '</a>',
                 'default' => '',
             ],
+            'webhook_signing_secret' => [
+                'title' => __('Webhook signing secret', 'zenkipay'),
+                'type' => 'password',
+                'description' => __('You can get this secret from your Zenkipay Dashboard: <b>Configurations > Webhooks</b>.', 'zenkipay'),
+                'default' => '',
+            ],
             'rsa_private_key' => [
                 'title' => __('RSA private key', 'zenkipay'),
                 'type' => 'textarea',
@@ -154,20 +252,13 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
      */
     public function process_payment($order_id)
     {
-        $zenkipay_order_id = $_POST['zenkipay_order_id'];
-
-        $order = new WC_Order($order_id);
-        $order->payment_complete();
-        $order->add_order_note(sprintf("%s payment completed with Zenkipay Order Id of '%s'", $this->GATEWAY_NAME, $zenkipay_order_id));
-        $order->save();
-
-        update_post_meta($order->get_id(), '_zenkipay_order_id', $zenkipay_order_id);
-
-        $this->updateZenkipayOrder($zenkipay_order_id, $order_id);
+        $order = wc_get_order($order_id);
+        $redirect_url = $this->get_return_url($order);
+        // $redirect_url = $order->get_checkout_payment_url(true);
 
         return [
             'result' => 'success',
-            'redirect' => $this->get_return_url($order),
+            'redirect' => $redirect_url,
         ];
     }
 
@@ -199,45 +290,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
     }
 
-    public function process_admin_options()
-    {
-        parent::process_admin_options();
-
-        $post_data = $this->get_post_data();
-        $mode = 'live';
-        $test_mode_index = 'woocommerce_' . $this->id . '_test_mode';
-        $plain_rsa_private_key = $post_data['woocommerce_' . $this->id . '_rsa_private_key'];
-
-        if (isset($post_data[$test_mode_index]) && $post_data[$test_mode_index] == '1') {
-            $mode = 'test';
-        }
-
-        $this->base_url = $mode == 'test' ? 'https://dev-gateway.zenki.fi' : 'https://uat-gateway.zenki.fi';
-        $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
-        $this->test_mode = $mode == 'test';
-
-        $env = $mode == 'live' ? 'Production' : 'Test';
-
-        $settings = new WC_Admin_Settings();
-
-        if ($this->zenkipay_key == '') {
-            $this->settings['enabled'] = '0';
-            $settings->add_error('You need to enter "' . $env . ' Zenkipay key" if you want to use this plugin in this mode.');
-        }
-
-        if (!$this->validateZenkipayKey()) {
-            $this->settings['enabled'] = '0';
-            $settings->add_error('Something went wrong while saving this configuration, your "Zenkipay key" is incorrect.');
-        }
-
-        if (!$this->validateRSAPrivateKey($plain_rsa_private_key)) {
-            $this->settings['enabled'] = '0';
-            $settings->add_error('Invalid RSA private key has been provided.');
-        }
-
-        return update_option($this->get_option_key(), apply_filters('woocommerce_settings_api_sanitized_fields_' . $this->id, $this->settings), 'yes');
-    }
-
     /**
      * Checks if the plain RSA private key is valid
      *
@@ -252,7 +304,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         $private_key = openssl_pkey_get_private($plain_rsa_private_key);
-        if (!is_resource($private_key)) {
+        if (!is_resource($private_key) && !is_object($private_key)) {
             return false;
         }
 
@@ -279,6 +331,24 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         return true;
     }
 
+    public function handleTrackingNumber($data)
+    {
+        try {
+            $url = $this->api_url;
+            $method = 'POST';
+
+            $result = $this->customRequest($url, $method, $data);
+
+            $this->logger->info('Zenkipay - handleTrackingNumber => ' . $url);
+            $this->logger->info('Zenkipay - handleTrackingNumber => ' . $result);
+
+            return true;
+        } catch (Exception $e) {
+            $this->logger->error('Zenkipay - handleTrackingNumber: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     /**
      * Get Zenkipay access token
      *
@@ -287,7 +357,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     public function getAccessToken()
     {
         $ch = curl_init();
-        $url = $this->base_url . '/public/v1/merchants/plugin/token';
+        $url = $this->gateway_url . '/public/v1/merchants/plugin/token';
         $payload = $this->zenkipay_key;
 
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
@@ -308,118 +378,135 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         return json_decode($result, true);
     }
 
-    /**
-     * Updates Zenkipay's merchantOrderId after WooCommerce register the order
-     *
-     * @param mixed $zenkipay_order_id
-     * @param mixed $order_id
-     *
-     * @return boolean
-     */
-    protected function updateZenkipayOrder($zenkipay_order_id, $order_id)
+    protected function customRequest($url, $method, $data)
     {
-        try {
-            $token_result = $this->getAccessToken();
-            if (!array_key_exists('access_token', $token_result)) {
-                $this->logger->error('Zenkipay - updateZenkipayOrder: Error al obtener access_token');
-                return false;
-            }
+        $token_result = $this->getAccessToken();
+        $this->logger->info('Zenkipay - customRequest => ' . json_encode($token_result));
 
-            $url = $this->base_url . '/v1/orders/' . $zenkipay_order_id;
-            $payload = json_encode(['zenkipayKey' => $this->zenkipay_key, 'merchantOrderId' => $order_id]);
-            $headers = ['Accept: */*', 'Content-Type: application/json', 'Authorization: Bearer ' . $token_result['access_token']];
-
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
-            $result = curl_exec($ch);
-
-            $this->logger->info('Zenkipay - updateZenkipayOrder => ' . $result);
-
-            if ($result === false) {
-                $this->logger->error('Curl error ' . curl_errno($ch) . ': ' . curl_error($ch));
-                return false;
-            }
-
-            curl_close($ch);
-
-            return true;
-        } catch (Exception $e) {
-            $this->logger->error('Zenkipay - updateZenkipayOrder: ' . $e->getMessage());
-            $this->logger->error('Zenkipay - updateZenkipayOrder: ' . $e->getTraceAsString());
-
-            return false;
+        if (!array_key_exists('access_token', $token_result)) {
+            $this->logger->error('Zenkipay  - customRequest: Error al obtener access_token');
+            throw new Exception('Invalid access token');
         }
+
+        $headers = ['Accept: */*', 'Content-Type: application/json', 'Authorization: Bearer ' . $token_result['access_token']];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        $result = curl_exec($ch);
+
+        if ($result === false) {
+            $this->logger->error('Curl error ' . curl_errno($ch) . ': ' . curl_error($ch));
+            throw new Exception(curl_error($ch));
+        }
+
+        curl_close($ch);
+
+        return $result;
     }
 
     /**
-     * payment_scripts function.
+     * Loads (enqueue) static files (js & css) for the checkout page
      *
-     * Outputs scripts used for openpay payment
-     *
-     * @access public
+     * @return void
      */
-    public function payment_scripts()
+    public function load_scripts()
     {
-        if (!is_checkout()) {
+        if (!is_order_received_page()) {
             return;
         }
 
-        global $woocommerce;
+        $payment_args = [];
+        $order_key = sanitize_key(urldecode($_REQUEST['key']));
+        $order_id = sanitize_key(absint(get_query_var('order-received')));
+        $order = wc_get_order($order_id);
 
-        wp_enqueue_script('zenkipay_js_resource', $this->base_url_js . '/zenkipay/script/zenkipay.js', [], $this->plugin_version, true);
+        if (sanitize_key($order->get_order_key()) != $order_key) {
+            return;
+        }
+
+        $payment_args = $this->getZenkipayPurchaseOptions($order_id);
+
+        wp_enqueue_script('zenkipay_js_resource', $this->js_url . '/zenkipay/script/zenkipay.js', [], $this->plugin_version, true);
         wp_enqueue_script('zenkipay_js_woo', plugins_url('assets/js/znk-modal.js', ZNK_WC_PLUGIN_FILE), ['jquery', 'zenkipay_js_resource'], $this->plugin_version, true);
         wp_enqueue_style('zenkipay_checkout_style', plugins_url('assets/css/checkout-style.css', ZNK_WC_PLUGIN_FILE, [], $this->plugin_version, 'all'));
+        wp_localize_script('zenkipay_js_woo', 'zenkipay_payment_args', $payment_args);
+    }
 
+    /**
+     * Generates the input data for Zenkipay's modal
+     *
+     * @param string $order_id
+     * @return Array
+     */
+    protected function getZenkipayPurchaseOptions($order_id)
+    {
+        $order = wc_get_order($order_id);
+        $totalItemsAmount = 0;
         $items = [];
-        foreach ($woocommerce->cart->get_cart() as $cart_item) {
+        $cb_url = $order->get_view_order_url();
+        $failed_url = esc_url(WC()->api_request_url('zenkipay_verify_payment'));
+
+        foreach ($order->get_items() as $item) {
             // Get an instance of corresponding the WC_Product object
-            $product = wc_get_product($cart_item['product_id']);
+            $product = $item->get_product();
             $thumbnailUrl = wp_get_attachment_image_url($product->get_image_id());
             $product_type = $product->get_type();
-            $product_price = $product->get_price();
             $desc = trim(preg_replace('/[[:^print:]]/', '', strip_tags($product->get_short_description())));
+            $qty = (int) $item->get_quantity();
+            $product_price = wc_get_price_excluding_tax($product); // without taxes
 
-            // If product has variations, price is taken from here
+            // If product has variations, image is taken from here
             if ($product_type == 'variable') {
-                $variable_product = new WC_Product_Variation($cart_item['variation_id']);
-                $product_price = $variable_product->price;
-                $thumbnailUrl = wp_get_attachment_image_url($variable_product->image_id);
+                $variable_product = new WC_Product_Variation($item->get_variation_id());
+                $thumbnailUrl = wp_get_attachment_image_url($variable_product->get_image_id());
             }
 
             $items[] = (object) [
-                'itemId' => $cart_item['product_id'],
-                'productName' => $product->get_title(),
+                'itemId' => $item->get_product_id(),
+                'productName' => $item->get_name(),
                 'productDescription' => $desc,
-                'quantity' => (int) $cart_item['quantity'],
+                'quantity' => $qty,
                 'thumbnailUrl' => $thumbnailUrl ? esc_url($thumbnailUrl) : '',
-                'price' => round($product_price, 2),
+                'price' => round($product_price, 2), // without taxes
             ];
+
+            $totalItemsAmount += $product_price * $qty;
         }
 
+        $subtotalAmount = $totalItemsAmount + $order->get_shipping_total();
         $purchase_data = [
-            'amount' => $woocommerce->cart->total,
-            'country' => $woocommerce->cart->get_customer()->get_billing_country(),
-            'currency' => get_woocommerce_currency(),
+            'merchantOrderId' => $order_id,
+            'shopperEmail' => !empty($order->get_billing_email()) ? $order->get_billing_email() : null,
             'items' => $items,
+            'purchaseSummary' => [
+                'currency' => get_woocommerce_currency(),
+                'totalItemsAmount' => round($totalItemsAmount, 2), // without taxes
+                'shipmentAmount' => round($order->get_shipping_total(), 2), // without taxes
+                'subtotalAmount' => round($subtotalAmount, 2), // without taxes
+                'taxesAmount' => round($order->get_total_tax(), 2),
+                'discountAmount' => round($order->get_discount_total(), 2),
+                'grandTotalAmount' => round($order->get_total(), 2),
+                'localTaxesAmount' => 0,
+                'importCosts' => 0,
+            ],
         ];
 
         $payload = json_encode($purchase_data);
         $signature = $this->generateSignature($payload);
 
-        $this->logger->info('Zenkipay - payload => ' . $payload);
-
-        $payment_args = [
+        return [
             'zenkipay_key' => $this->zenkipay_key,
             'purchase_data' => $payload,
             'zenkipay_signature' => $signature,
+            'cb_url' => $cb_url,
+            'failed_url' => $failed_url,
+            'order_id' => $order_id,
         ];
-
-        wp_localize_script('zenkipay_js_woo', 'zenkipay_payment_args', $payment_args);
     }
 
     /**
@@ -434,6 +521,32 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $rsa_private_key = openssl_pkey_get_private($this->rsa_private_key);
         openssl_sign($payload, $signature, $rsa_private_key, 'RSA-SHA256');
         return base64_encode($signature);
+    }
+
+    /**
+     * Verify payment made on the checkout page
+     *
+     * @return string
+     */
+    public function zenkipayVerifyPayment()
+    {
+        header('HTTP/1.1 200 OK');
+
+        if (isset($_POST['order_id']) && isset($_POST['complete'])) {
+            $complete = $_POST['complete'];
+            if ($complete != '0') {
+                return;
+            }
+
+            $order = wc_get_order($_POST['order_id']);
+            $order->update_status('failed', 'Payment not successful.');
+            //$redirect_url = esc_url($this->get_return_url($order));
+            $redirect_url = $order->get_view_order_url();
+
+            echo json_encode(['redirect_url' => $redirect_url]);
+        }
+
+        die();
     }
 }
 ?>
