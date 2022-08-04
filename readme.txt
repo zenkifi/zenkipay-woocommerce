@@ -2,7 +2,7 @@
 Contributors: zenki
 Tags: woocommerce, zenki, zenkipay, cryptocurrency, wallets, metamask, rainbow, muun, argent, payments, ecommerce, e-commerce, store, sales, sell, shop, shopping, cart, checkout
 Requires at least: 5.3
-Tested up to: 5.9
+Tested up to: 6.0.1
 Requires PHP: 7.1
 Stable tag: 1.6.1
 License: GPLv2
@@ -61,7 +61,7 @@ Follow the steps below to connect the plugin to your Zenki account:
 4. Enable "Zenkipay" on the Payment methods tab in WooCommerce.
 
 == Changelog ==
-= 1.6.0 =
+= 1.6.1 =
 * Webhook was implemented to change the order status to complete
 * Capture order's zenkipay_tracking_number
 = 1.5.0 =
