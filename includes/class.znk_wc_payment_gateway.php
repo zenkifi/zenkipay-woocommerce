@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.6.1';
+    protected $plugin_version = '1.6.3';
     protected $api_url;
     protected $js_url;
 
@@ -53,7 +53,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
 
         // URL's
-        $this->gateway_url = 'https://gateway.zenki.fi';
+        $this->gateway_url = 'https://prod-gateway.zenki.fi';
         $this->api_url = 'https://api.zenki.fi';
         $this->js_url = 'https://resources.zenki.fi';
 
@@ -128,7 +128,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $mode = 'test';
         }
 
-        $this->gateway_url = 'https://gateway.zenki.fi';
+        $this->gateway_url = 'https://prod-gateway.zenki.fi';
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
         $this->test_mode = $mode == 'test';
 
@@ -177,6 +177,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 </div>
             </div>';
 
+        $webhook_url = site_url('/', 'https') . 'wc-api/wc_zenki_gateway';
+
         $this->form_fields = [
             'zenkipay-header' => [
                 'title' => wp_kses_post($header_template),
@@ -220,7 +222,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             'webhook_signing_secret' => [
                 'title' => __('Webhook signing secret', 'zenkipay'),
                 'type' => 'password',
-                'description' => __('You can get this secret from your Zenkipay Dashboard: <b>Configurations > Webhooks</b>.', 'zenkipay'),
+                'description' => __('You can get this secret from your Zenkipay Dashboard: <b>Configurations > Webhooks</b>. But first add this URL: ' . $webhook_url, 'zenkipay'),
                 'default' => '',
             ],
             'rsa_private_key' => [

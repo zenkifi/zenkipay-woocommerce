@@ -8,3 +8,9 @@
 .col-md-12 {
     clear: both;
 }
+
+
+.woocommerce-thankyou-order-received {
+    border: 2px dashed #E59953 !important;
+    color: #E59953 !important;
+}
