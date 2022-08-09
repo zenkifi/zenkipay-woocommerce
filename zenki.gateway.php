@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.6.1
+ * Version: 1.6.3
  */
 
 if (!defined('ABSPATH')) {
@@ -95,3 +95,19 @@ add_action(
     10,
     3
 );
+
+// Order Received Thank You Text
+function override_thankyou_text($thankyoutext, $order)
+{
+    if ($order->get_payment_method() != 'zenkipay') {
+        return $thankyoutext;
+    }
+
+    $icon = plugins_url('zenkipay/assets/icons/clock.svg', __DIR__);
+    $text = __('Your order was created successfully and is pending payment.', 'zenkipay');
+    $added_text = '<img src="'.$icon.'" height="40" width="40" alt="pending" style="margin-right: 5px;" /> <span>'.$text.'</span>';
+    return $added_text;
+}
+add_filter('woocommerce_thankyou_order_received_text', 'override_thankyou_text', 10, 2);
+
+
