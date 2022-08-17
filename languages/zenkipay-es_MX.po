@@ -1,0 +1,134 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Zenkipay\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-08-17 18:45+0000\n"
+"PO-Revision-Date: 2022-08-17 19:03+0000\n"
+"Last-Translator: \n"
+"Language-Team: Español de México\n"
+"Language: es_MX\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.6.2; wp-6.0.1\n"
+"X-Domain: zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:219
+msgid "<b>Need a key?</b> Create your Zenkipay account"
+msgstr "<b>¿Necesitas una llave?</b> Crea tu cuenta en Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:31
+msgid "Continue with Zenkipay"
+msgstr "Continuar con Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:232
+msgid ""
+"Copy and paste in this text box the RSA private key that you generated or "
+"provided during the configuration of your Zenkipay account."
+msgstr ""
+"Copia y pega en esta caja de texto la llave privada RSA que generaste o "
+"proporcionaste durante la configuración de tu cuenta de Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:197
+msgid "Enable test mode"
+msgstr "Habilitar modo de pruebas"
+
+#: includes/class.znk_wc_payment_gateway.php:190
+msgid "Enable Zenkipay"
+msgstr "Habilitar Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:189
+msgid "Enable/Disable"
+msgstr "Habilitar/Deshabilitar"
+
+#: includes/class.znk_wc_payment_gateway.php:211
+#: includes/class.znk_wc_payment_gateway.php:219
+msgid "here"
+msgstr "aquí"
+
+#. URI of the plugin
+msgid "https://github.com/zenkifi/zenkipay-woocommerce"
+msgstr "https://github.com/zenkifi/zenkipay-woocommerce"
+
+#. Author URI of the plugin
+msgid "https://zenki.fi/"
+msgstr "https://github.com/zenkifi/zenkipay-woocommerce"
+
+#: includes/class.znk_wc_payment_gateway.php:45
+msgid "Pay with cryptos… any wallet, any coin!. Transaction 100%"
+msgstr ""
+"Paga con criptomonedas... cualquier billetera, cualquier moneda!. "
+"Transacción 100%"
+
+#: includes/class.znk_wc_payment_gateway.php:199
+msgid "Place the payment gateway in test mode using sandbox network."
+msgstr ""
+"Coloque la pasarela de pago en modo de prueba utilizando la red sandbox."
+
+#: includes/class.znk_wc_payment_gateway.php:207
+msgid ""
+"Prior to accepting live crypto payments, you can test crypto payments in a "
+"safe Zenkipay sandbox environment. Create your Zenkipay account"
+msgstr ""
+"Antes de aceptar pagos con criptomonedas en producción, puedes probar los "
+"pagos en un entorno seguro de pruebas de Zenkipay. Crea tu cuenta Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:216
+msgid "Production Zenkipay key"
+msgstr "Llave de producción de Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:229
+msgid "RSA private key"
+msgstr "Llave privada RSA"
+
+#: includes/class.znk_wc_payment_gateway.php:204
+msgid "Sandbox Zenkipay key"
+msgstr "Llave sandbox de Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:45
+msgid "secured"
+msgstr "asegurada"
+
+#: zenki.gateway.php:40
+msgid "Settings"
+msgstr "Configuración"
+
+#: includes/class.znk_wc_payment_gateway.php:196
+msgid "Test mode"
+msgstr "Modo de prueba"
+
+#: includes/class.znk_wc_payment_gateway.php:223
+msgid "Webhook signing secret"
+msgstr "Firma secreta para webhook"
+
+#: zenki.gateway.php:107
+msgid "Your order was created successfully and is pending payment."
+msgstr "Su pedido fue creado con éxito y está pendiente de pago."
+
+#. Description of the plugin
+#: includes/class.znk_wc_payment_gateway.php:33
+#, php-format
+msgid ""
+"Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100% "
+"secured."
+msgstr ""
+"Tus clientes pueden pagar con criptomonedas… cualquier billetera, cualquier "
+"moneda!. Transacción 100% asegurada."
+
+#. Author of the plugin
+msgid "Zenki"
+msgstr "Zenki"
+
+#. Name of the plugin
+#: includes/class.znk_wc_payment_gateway.php:32
+#: includes/class.znk_wc_payment_gateway.php:43
+msgid "Zenkipay"
+msgstr "Zenkipay"
+
+#: includes/class.znk_wc_payment_gateway.php:285
+msgid "Zenkipay needs WooCommerce plugin is installed and activated to work."
+msgstr ""
+"Zenkipay necesita que el plugin WooCommerce esté instalado y activado para "
+"funcionar."
