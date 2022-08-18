@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: Zenkipay\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-08-17 18:45+0000\n"
-"PO-Revision-Date: 2022-08-17 19:03+0000\n"
+"PO-Revision-Date: 2022-08-17 21:54+0000\n"
 "Last-Translator: \n"
 "Language-Team: Español de México\n"
 "Language: es_MX\n"
@@ -33,7 +33,7 @@ msgstr ""
 
 #: includes/class.znk_wc_payment_gateway.php:197
 msgid "Enable test mode"
-msgstr "Habilitar modo de pruebas"
+msgstr "Habilitar modo de prueba"
 
 #: includes/class.znk_wc_payment_gateway.php:190
 msgid "Enable Zenkipay"
@@ -102,6 +102,14 @@ msgstr "Modo de prueba"
 #: includes/class.znk_wc_payment_gateway.php:223
 msgid "Webhook signing secret"
 msgstr "Firma secreta para webhook"
+
+#: includes/class.znk_wc_payment_gateway.php:225
+msgid ""
+"You can get this secret from your Zenkipay Dashboard: <b>Configurations > "
+"Webhooks</b>"
+msgstr ""
+"Puedes obtener esta firma secreta desde tu Dashboard de Zenkipay: <b>"
+"Configuraciones > Webhooks</b>"
 
 #: zenki.gateway.php:107
 msgid "Your order was created successfully and is pending payment."

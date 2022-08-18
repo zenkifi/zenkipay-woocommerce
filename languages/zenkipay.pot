@@ -97,6 +97,10 @@ msgstr ""
 msgid "Webhook signing secret"
 msgstr ""
 
+#: includes/class.znk_wc_payment_gateway.php:225
+msgid "You can get this secret from your Zenkipay Dashboard: <b>Configurations > Webhooks</b>"
+msgstr ""
+
 #: zenki.gateway.php:107
 msgid "Your order was created successfully and is pending payment."
 msgstr ""
