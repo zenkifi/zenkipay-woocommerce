@@ -13,4 +13,8 @@
 .woocommerce-thankyou-order-received {
     border: 2px dashed #E59953 !important;
     color: #E59953 !important;
+    display: flex;
+	align-items: center;
+	padding: 20px;
+	font-size: 2rem;
 }

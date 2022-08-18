@@ -26,16 +26,16 @@ jQuery(document).ready(function () {
     function handleZenkipayEvents(error, data, details) {
         console.log('handleZenkipayEvents error', error);
 
-        // if (error && details.postMsgType === 'error') {
-        //     var payload = { order_id: storeOrderId, complete: '0' };
-        //     sendPaymentRequest(payload);
-        //     return;
-        // }
+        if (error && details.postMsgType === 'error') {
+            var payload = { order_id: storeOrderId, complete: '0' };
+            sendPaymentRequest(payload);
+            return;
+        }
 
-        // if ((!error && details.postMsgType === 'close') || details.postMsgType === 'cancel') {
-        //     location.href = callbackUrl;
-        //     return;
-        // }
+        if ((!error && details.postMsgType === 'close') || details.postMsgType === 'cancel') {
+            location.href = callbackUrl;
+            return;
+        }
     }
 
     function sendPaymentRequest(data) {
