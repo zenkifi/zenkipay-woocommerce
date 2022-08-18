@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.6.3';
+    protected $plugin_version = '1.6.5';
     protected $api_url;
     protected $js_url;
 
@@ -229,7 +229,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 'title' => __('RSA private key', 'zenkipay'),
                 'type' => 'textarea',
                 'css' => 'width: 600px; height: 600px;',
-                'description' => __('Copy and paste your private key here with <b><i>cat /path/to/your/private-key.pem | pbcopy</i></b>', 'zenkipay'),
+                'description' => __('Copy and paste in this text box the RSA private key that you generated or provided during the configuration of your Zenkipay account.', 'zenkipay'),
             ],
         ];
     }
@@ -276,16 +276,16 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         /**
-         * Check if plugin key is provided
+         * Check if WC is installed and activated
          */
-        if ((!$this->live_plugin_key && !$this->test_mode) || (!$this->test_plugin_key && $this->test_mode)) {
+        if ( !in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {                    
+            // WooCommerce is NOT enabled!
             echo wp_kses_post('<div class="error"><p>');
-            echo sprintf(
+            echo (
                 __(
-                    'Zenkipay is almost ready. Provide your Zenki "Pay Button" Zenkipay key <a href="%s">here</a>. Or get your Zenkipay keys <a href="https://zenki.fi/" target="_blank">here</a>.',
+                    'Zenkipay needs WooCommerce plugin is installed and activated to work.',
                     'zenkipay'
-                ),
-                esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=zenkipay'))
+                )
             );
             echo wp_kses_post('</p></div>');
             return;

@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.6.3
+ * Version: 1.6.5
  */
 
 if (!defined('ABSPATH')) {
@@ -17,7 +17,7 @@ define('ZNK_WC_PLUGIN_FILE', __FILE__);
 define('ZNK_WC_DIR_PATH', plugin_dir_path(ZNK_WC_PLUGIN_FILE));
 
 //Languages traslation
-load_plugin_textdomain('zenkipay', false, dirname(plugin_basename(__FILE__)) . '/assets/languages/');
+load_plugin_textdomain('zenkipay', false, dirname(plugin_basename(__FILE__)) . '/languages/');
 
 /*
  * This action hook registers our PHP class as a WooCommerce payment gateway
