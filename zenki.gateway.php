@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.6.7
+ * Version: 1.6.9
  */
 
 if (!defined('ABSPATH')) {
@@ -14,7 +14,6 @@ if (!defined('ABSPATH')) {
 }
 
 define('ZNK_WC_PLUGIN_FILE', __FILE__);
-define('ZNK_WC_DIR_PATH', plugin_dir_path(ZNK_WC_PLUGIN_FILE));
 
 //Languages traslation
 load_plugin_textdomain('zenkipay', false, dirname(plugin_basename(__FILE__)) . '/languages/');
@@ -30,7 +29,7 @@ function zenkipay_init_gateway_class()
         return;
     }
 
-    require_once ZNK_WC_DIR_PATH . 'includes/class.znk_wc_payment_gateway.php';
+    include_once 'includes/class.znk_wc_payment_gateway.php';
 
     add_filter('woocommerce_payment_gateways', 'add_gateway_class');
 
@@ -105,9 +104,17 @@ function override_thankyou_text($thankyoutext, $order)
 
     $icon = plugins_url('zenkipay/assets/icons/clock.svg', __DIR__);
     $text = __('Your order was created successfully and is pending payment.', 'zenkipay');
-    $added_text = '<img src="'.$icon.'" height="40" width="40" alt="pending" style="margin-right: 5px;" /> <span>'.$text.'</span>';
+    $added_text = '<img src="' . $icon . '" height="40" width="40" alt="pending" style="margin-right: 5px;" /> <span>' . $text . '</span>';
     return $added_text;
 }
 add_filter('woocommerce_thankyou_order_received_text', 'override_thankyou_text', 10, 2);
 
-
+// // Order Received Thank You Title
+add_filter('the_title', 'woo_title_order_received', 10, 2);
+function woo_title_order_received($title, $id)
+{
+    if (function_exists('is_order_received_page') && is_order_received_page() && get_the_ID() === $id) {
+        $title = 'Pending order';
+    }
+    return $title;
+}

@@ -4,7 +4,7 @@ Tags: woocommerce, zenki, zenkipay, cryptocurrency, wallets, metamask, rainbow, 
 Requires at least: 5.3
 Tested up to: 6.0.1
 Requires PHP: 7.1
-Stable tag: 1.6.7
+Stable tag: 1.6.9
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -61,6 +61,10 @@ Follow the steps below to connect the plugin to your Zenki account:
 4. Enable "Zenkipay" on the Payment methods tab in WooCommerce.
 
 == Changelog ==
+= 1.6.9 =
+* Fix: Updated production URLs
+= 1.6.8 =
+* Fix: URL to activate plugin
 = 1.6.7 =
 * Added behavior to redirect customers to order detail if modal is closed
 = 1.6.6 =
