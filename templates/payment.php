@@ -1,11 +1,7 @@
 <?php
-/*
- * Plugin Name: Zenkipay
- * Plugin URI: https://github.com/zenkifi/zenkipay-woocommerce
- * Description: Your shoppers can pay with cryptos… any wallet, any coin!. Transaction 100% secured.
- * Author: Zenki
- * Author URI: https://zenki.fi/
- * Text Domain: zenkipay 
+/** 
+ * @package Zenkipay/Gateways
+ * @author Zenki 
  */
 ?>
 

@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit();
 }
 
-require_once ZNK_WC_DIR_PATH . 'lib/svix/init.php';
+require_once dirname(__DIR__) . '/lib/svix/init.php';
 
 class WC_Zenki_Gateway extends WC_Payment_Gateway
 {
@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.6.7';
+    protected $plugin_version = '1.6.9';
     protected $api_url;
     protected $js_url;
 
@@ -203,6 +203,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             'test_plugin_key' => [
                 'title' => __('Sandbox Zenkipay key', 'zenkipay'),
                 'type' => 'text',
+                'default' => '',
                 'description' =>
                     __('Prior to accepting live crypto payments, you can test crypto payments in a safe Zenkipay sandbox environment. Create your Zenkipay account', 'zenkipay') .
                     ' <a href="' .
@@ -215,6 +216,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             'live_plugin_key' => [
                 'title' => __('Production Zenkipay key', 'zenkipay'),
                 'type' => 'text',
+                'default' => '',
                 'description' =>
                     __('<b>Need a key?</b> Create your Zenkipay account', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('here', 'zenkipay') . '</a>',
                 'default' => '',
@@ -244,7 +246,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 $this->description = trim($this->description);
             }
         }
-        include_once ZNK_WC_DIR_PATH . 'templates/payment.php';
+
+        include_once dirname(__DIR__) . '/templates/payment.php';
     }
 
     /**
@@ -278,15 +281,10 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         /**
          * Check if WC is installed and activated
          */
-        if ( !in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {                    
+        if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
             // WooCommerce is NOT enabled!
             echo wp_kses_post('<div class="error"><p>');
-            echo (
-                __(
-                    'Zenkipay needs WooCommerce plugin is installed and activated to work.',
-                    'zenkipay'
-                )
-            );
+            echo __('Zenkipay needs WooCommerce plugin is installed and activated to work.', 'zenkipay');
             echo wp_kses_post('</p></div>');
             return;
         }
