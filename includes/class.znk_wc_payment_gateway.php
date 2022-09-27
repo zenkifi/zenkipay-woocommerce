@@ -90,9 +90,19 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $json = $wh->verify($payload, $svix_headers);
 
             if ($json->transactionStatus == 'COMPLETED') {
-                $order_id = $json->merchantOrderId;
 
+                $order_id = $json->merchantOrderId;
                 $order = new WC_Order($order_id);
+                $total_zenki = $json->totalAmount;
+                $total_woo = $order->get_total();
+                $discount_woo = $order->get_discount_total();
+
+                if ($total_zenki < $total_woo) {
+                    $discount_zenki = $total_woo - $total_zenki;
+                    $discount_total = $discount_woo + $discount_zenki;
+                    $order->set_discount_total($discount_total);
+                }
+                
                 $order->payment_complete();
                 $order->add_order_note(sprintf("%s payment completed with Zenkipay Order Id of '%s'", $this->GATEWAY_NAME, $json->orderId));
 
