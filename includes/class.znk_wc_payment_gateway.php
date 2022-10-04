@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.6.10';
+    protected $plugin_version = '1.6.11';
     protected $api_url;
     protected $js_url;
 
@@ -547,6 +547,20 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         die();
+    }
+
+    /**
+     * Get Merchan Info
+     *
+     * @return array
+     */
+    public function getMerchanInfo()
+    {
+        $method = 'GET';
+        $url = $this->gateway_url.'/v1/merchants/plugin?pluginKey='.$this->zenkipay_key;
+        $result = $this->customRequest($url, $method, null);
+
+        return json_decode($result, true);
     }
 }
 ?>
