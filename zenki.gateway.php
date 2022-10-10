@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.6.9
+ * Version: 1.6.11
  */
 
 if (!defined('ABSPATH')) {
@@ -22,6 +22,10 @@ load_plugin_textdomain('zenkipay', false, dirname(plugin_basename(__FILE__)) . '
  * This action hook registers our PHP class as a WooCommerce payment gateway
  */
 add_action('plugins_loaded', 'zenkipay_init_gateway_class', 0);
+add_filter('woocommerce_thankyou_order_received_text', 'override_thankyou_text', 10, 2);
+add_filter('the_title', 'woo_title_order_received', 10, 2);
+add_action( 'woocommerce_checkout_process', 'addDiscount');
+add_filter('woocommerce_cart_totals_coupon_label', 'discountLabel', 10, 2);
 
 function zenkipay_init_gateway_class()
 {
@@ -107,14 +111,48 @@ function override_thankyou_text($thankyoutext, $order)
     $added_text = '<img src="' . $icon . '" height="40" width="40" alt="pending" style="margin-right: 5px;" /> <span>' . $text . '</span>';
     return $added_text;
 }
-add_filter('woocommerce_thankyou_order_received_text', 'override_thankyou_text', 10, 2);
 
 // // Order Received Thank You Title
-add_filter('the_title', 'woo_title_order_received', 10, 2);
 function woo_title_order_received($title, $id)
 {
     if (function_exists('is_order_received_page') && is_order_received_page() && get_the_ID() === $id) {
         $title = 'Pending order';
     }
     return $title;
+}
+
+function addDiscount() {
+    // Obtenemos el valor del cripto love
+    $zenkipay = new WC_Zenki_Gateway();
+    $merchan_info = $zenkipay->getMerchanInfo();
+    $discount_percentage = $merchan_info['discountPercentage'];
+    
+    $totalAmount = WC()->cart->get_total('number');
+    $baseDiscount = ($totalAmount * $discount_percentage) / 100;
+    
+    $todate = date("dmyGis");
+    $coupon_code = 'criptolove'.$todate;
+    $coupon = new WC_Coupon();
+    $coupon->set_code($coupon_code); // Coupon code
+    $coupon->set_description( 'Cripto Love');
+    $coupon->set_amount($baseDiscount); //* Discount amount
+    $coupon->set_usage_limit( 1 ); // Times this coupon can be used
+    $coupon->set_usage_limit_per_user( 1 ); // Times this coupon can be used per user
+    $coupon->save();
+
+    $array_coupons = array($coupon_code);
+
+    foreach ( WC()->cart->get_applied_coupons() as $code ) {
+        array_push($array_coupons, $code);
+    }
+
+    WC()->cart->set_applied_coupons($array_coupons);
+}
+
+function discountLabel($label, $coupon) {
+
+    if (strpos($coupon->code, 'criptolove') !== false) {
+        return __('Cripto Love');
+    }
+    return $label;
 }

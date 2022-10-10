@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.6.9';
+    protected $plugin_version = '1.6.11';
     protected $api_url;
     protected $js_url;
 
@@ -344,7 +344,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     public function handleTrackingNumber($data)
     {
         try {
-            $url = $this->api_url;
+            $url = $this->api_url . '/v1/api/tracking';
             $method = 'POST';
 
             $result = $this->customRequest($url, $method, $data);
@@ -557,6 +557,20 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         die();
+    }
+
+    /**
+     * Get Merchan Info
+     *
+     * @return array
+     */
+    public function getMerchanInfo()
+    {
+        $method = 'GET';
+        $url = $this->gateway_url.'/v1/merchants/plugin?pluginKey='.$this->zenkipay_key;
+        $result = $this->customRequest($url, $method, null);
+
+        return json_decode($result, true);
     }
 }
 ?>
