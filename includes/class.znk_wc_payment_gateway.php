@@ -21,8 +21,9 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $rsa_private_key;
     protected $webhook_signing_secret;
     protected $plugin_version = '1.6.11';
-    protected $api_url;
-    protected $js_url;
+    protected $gateway_url = 'https://uat-gateway.zenki.fi';
+    protected $api_url = 'https://uat-api.zenki.fi';
+    protected $js_url = 'https://uat-resources.zenki.fi';
 
     public function __construct()
     {
@@ -51,11 +52,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->zenkipay_key = $this->test_mode ? $this->test_plugin_key : $this->live_plugin_key;
         $this->rsa_private_key = $this->settings['rsa_private_key'];
         $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
-
-        // URL's
-        $this->gateway_url = 'https://prod-gateway.zenki.fi';
-        $this->api_url = 'https://api.zenki.fi';
-        $this->js_url = 'https://resources.zenki.fi';
 
         add_action('wp_enqueue_scripts', [$this, 'load_scripts']);
         add_action('woocommerce_api_zenkipay_verify_payment', [$this, 'zenkipayVerifyPayment']);
@@ -138,7 +134,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $mode = 'test';
         }
 
-        $this->gateway_url = 'https://prod-gateway.zenki.fi';
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
         $this->test_mode = $mode == 'test';
 
@@ -489,7 +484,21 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         $subtotalAmount = $totalItemsAmount + $order->get_shipping_total();
+        $discountAmount = $order->get_discount_total();
+        $grandTotalAmount = $order->get_total();
+
+        $merchan_info = $this->getMerchanInfo();
+        $discount_percentage = $merchan_info['discountPercentage'];
+        $originalGrandTotalAmount = (($grandTotalAmount * 100) / (100 - $discount_percentage));
+        $criptoLoveDiscount = ($originalGrandTotalAmount - $grandTotalAmount);
+        $originalDiscountAmount = 0;
+        if ($discountAmount > 0) {
+            $originalDiscountAmount = $discountAmount - $criptoLoveDiscount;
+        }
+
         $purchase_data = [
+            'version' => $this->purchase_data_version,
+            'zenkipayKey' => $this->zenkipay_key,
             'merchantOrderId' => $order_id,
             'shopperEmail' => !empty($order->get_billing_email()) ? $order->get_billing_email() : null,
             'items' => $items,
@@ -499,8 +508,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 'shipmentAmount' => round($order->get_shipping_total(), 2), // without taxes
                 'subtotalAmount' => round($subtotalAmount, 2), // without taxes
                 'taxesAmount' => round($order->get_total_tax(), 2),
-                'discountAmount' => round($order->get_discount_total(), 2),
-                'grandTotalAmount' => round($order->get_total(), 2),
+                'discountAmount' => round($originalDiscountAmount, 2),
+                'grandTotalAmount' => round($originalGrandTotalAmount, 2),
                 'localTaxesAmount' => 0,
                 'importCosts' => 0,
             ],

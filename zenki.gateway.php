@@ -121,6 +121,7 @@ function woo_title_order_received($title, $id)
     return $title;
 }
 
+add_action( 'woocommerce_checkout_process', 'addDiscount');
 function addDiscount() {
     // Obtenemos el valor del cripto love
     $zenkipay = new WC_Zenki_Gateway();
@@ -129,7 +130,6 @@ function addDiscount() {
     
     $totalAmount = WC()->cart->get_total('number');
     $baseDiscount = ($totalAmount * $discount_percentage) / 100;
-    
     $todate = date("dmyGis");
     $coupon_code = 'criptolove'.$todate;
     $coupon = new WC_Coupon();
@@ -149,6 +149,7 @@ function addDiscount() {
     WC()->cart->set_applied_coupons($array_coupons);
 }
 
+add_filter('woocommerce_cart_totals_coupon_label', 'discountLabel', 10, 2);
 function discountLabel($label, $coupon) {
 
     if (strpos($coupon->code, 'criptolove') !== false) {
