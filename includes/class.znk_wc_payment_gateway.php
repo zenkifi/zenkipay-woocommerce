@@ -19,11 +19,12 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
     protected $rsa_private_key;
-    protected $webhook_signing_secret;
-    protected $api_url;
-    protected $js_url;
+    protected $webhook_signing_secret;    
     protected $plugin_version = '1.7.0';
     protected $purchase_data_version = 'v1.1.0';
+    protected $gateway_url = 'https://prod-gateway.zenki.fi';
+    protected $api_url = 'https://api.zenki.fi';
+    protected $js_url = 'https://resources.zenki.fi';
 
     public function __construct()
     {
@@ -53,11 +54,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->rsa_private_key = $this->settings['rsa_private_key'];
         $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
 
-        // URL's
-        $this->gateway_url = 'https://uat-gateway.zenki.fi';
-        $this->api_url = 'https://uat-api.zenki.fi';
-        $this->js_url = 'https://uat-resources.zenki.fi';
-
+        
         add_action('wp_enqueue_scripts', [$this, 'load_scripts']);
         add_action('woocommerce_api_zenkipay_verify_payment', [$this, 'zenkipayVerifyPayment']);
 
@@ -137,8 +134,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         if (isset($post_data[$test_mode_index]) && $post_data[$test_mode_index] == '1') {
             $mode = 'test';
         }
-
-        $this->gateway_url = 'https://uat-gateway.zenki.fi';
+        
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
         $this->test_mode = $mode == 'test';
 
