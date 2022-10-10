@@ -609,5 +609,19 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
         return $decrypted;
     }
+
+    /**
+     * Get Merchan Info
+     *
+     * @return array
+     */
+    public function getMerchanInfo()
+    {
+        $method = 'GET';
+        $url = $this->gateway_url.'/v1/merchants/plugin?pluginKey='.$this->zenkipay_key;
+        $result = $this->customRequest($url, $method, null);
+
+        return json_decode($result, true);
+    }
 }
 ?>

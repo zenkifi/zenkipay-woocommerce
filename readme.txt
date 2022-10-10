@@ -64,6 +64,8 @@ Follow the steps below to connect the plugin to your Zenki account:
 = 1.7.0 =
 * Webhook payload decryption was implemented
 * Webhook payload structure changed 
+= 1.6.11 =
+* Fix: Crypto love discount applies
 = 1.6.10 =
 * Updated tracking endpoint
 = 1.6.9 =
