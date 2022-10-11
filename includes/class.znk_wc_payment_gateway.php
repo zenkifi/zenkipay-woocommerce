@@ -20,9 +20,11 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.6.11';
-    protected $api_url;
-    protected $js_url;
+    protected $plugin_version = '1.7.0';
+    protected $purchase_data_version = 'v1.1.0';
+    protected $gateway_url = 'https://prod-gateway.zenki.fi';
+    protected $api_url = 'https://api.zenki.fi';
+    protected $js_url = 'https://resources.zenki.fi';
 
     public function __construct()
     {
@@ -52,11 +54,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->rsa_private_key = $this->settings['rsa_private_key'];
         $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
 
-        // URL's
-        $this->gateway_url = 'https://prod-gateway.zenki.fi';
-        $this->api_url = 'https://api.zenki.fi';
-        $this->js_url = 'https://resources.zenki.fi';
-
         add_action('wp_enqueue_scripts', [$this, 'load_scripts']);
         add_action('woocommerce_api_zenkipay_verify_payment', [$this, 'zenkipayVerifyPayment']);
 
@@ -72,6 +69,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
     public function webhookHandler()
     {
+        $order_id = '';
         $payload = file_get_contents('php://input');
         $response = [];
         $header_response = 'HTTP/1.1 200 OK';
@@ -89,18 +87,27 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $wh = new \Svix\Webhook($secret);
             $json = $wh->verify($payload, $svix_headers);
 
-            if ($json->transactionStatus == 'COMPLETED') {
-                $order_id = $json->merchantOrderId;
-
-                $order = new WC_Order($order_id);
-                $order->payment_complete();
-                $order->add_order_note(sprintf("%s payment completed with Zenkipay Order Id of '%s'", $this->GATEWAY_NAME, $json->orderId));
-
-                update_post_meta($order->get_id(), '_zenkipay_order_id', $json->orderId);
-                update_post_meta($order->get_id(), 'zenkipay_tracking_number', '');
-
-                wc_reduce_stock_levels($order_id);
+            if (!($decrypted_data = $this->RSADecyrpt($json->encryptedData))) {
+                throw new Exception('Unable to decrypt data.');
             }
+
+            $this->logger->info('$decrypted_data => ' . $decrypted_data);
+            $event = json_decode($decrypted_data);
+            $payment = $event->eventDetails;
+
+            if ($payment->transactionStatus != 'COMPLETED' || !$payment->merchantOrderId) {
+                throw new Exception('Transaction status is no tcompleted or merchantOrderId is empty.');
+            }
+
+            $order_id = $payment->merchantOrderId;
+            $order = new WC_Order($order_id);
+            $order->payment_complete();
+            $order->add_order_note(sprintf("%s payment completed with Zenkipay Order Id of '%s'", $this->GATEWAY_NAME, $payment->orderId));
+
+            update_post_meta($order->get_id(), '_zenkipay_order_id', $payment->orderId);
+            update_post_meta($order->get_id(), 'zenkipay_tracking_number', '');
+
+            wc_reduce_stock_levels($order_id);
 
             $response = ['success' => true, 'order_id' => $order_id];
         } catch (Exception $e) {
@@ -128,7 +135,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $mode = 'test';
         }
 
-        $this->gateway_url = 'https://prod-gateway.zenki.fi';
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
         $this->test_mode = $mode == 'test';
 
@@ -177,7 +183,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 </div>
             </div>';
 
-        $webhook_url = site_url('/', 'https') . 'wc-api/wc_zenki_gateway';
+        $webhook_url = site_url('/', 'https') . 'wc-api/';
 
         $this->form_fields = [
             'zenkipay-header' => [
@@ -337,14 +343,29 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $url = $this->api_url . '/v1/api/tracking';
             $method = 'POST';
 
-            $result = $this->customRequest($url, $method, $data);
-
-            $this->logger->info('Zenkipay - handleTrackingNumber => ' . $url);
-            $this->logger->info('Zenkipay - handleTrackingNumber => ' . $result);
+            $this->customRequest($url, $method, $data);
 
             return true;
         } catch (Exception $e) {
             $this->logger->error('Zenkipay - handleTrackingNumber: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function createDispute($data)
+    {
+        try {
+            $this->logger->info('Zenkipay - createDispute => ' . json_encode($data));
+            $url = $this->api_url . '/v1/api/disputes';
+            $method = 'POST';
+
+            $result = $this->customRequest($url, $method, $data);
+
+            $this->logger->info('Zenkipay - createDispute => ' . $result);
+
+            return true;
+        } catch (Exception $e) {
+            $this->logger->error('Zenkipay - createDispute: ' . $e->getMessage());
             return false;
         }
     }
@@ -381,7 +402,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected function customRequest($url, $method, $data)
     {
         $token_result = $this->getAccessToken();
-        $this->logger->info('Zenkipay - customRequest => ' . json_encode($token_result));
 
         if (!array_key_exists('access_token', $token_result)) {
             $this->logger->error('Zenkipay  - customRequest: Error al obtener access_token');
@@ -425,7 +445,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $order_id = sanitize_key(absint(get_query_var('order-received')));
         $order = wc_get_order($order_id);
 
-        if (sanitize_key($order->get_order_key()) != $order_key) {
+        if (sanitize_key($order->get_order_key()) != $order_key || $order->get_payment_method() !== 'zenkipay') {
             return;
         }
 
@@ -456,6 +476,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $product = $item->get_product();
             $thumbnailUrl = wp_get_attachment_image_url($product->get_image_id());
             $product_type = $product->get_type();
+            $name = trim(preg_replace('/[[:^print:]]/', '', strip_tags($item->get_name())));
             $desc = trim(preg_replace('/[[:^print:]]/', '', strip_tags($product->get_short_description())));
             $qty = (int) $item->get_quantity();
             $product_price = wc_get_price_excluding_tax($product); // without taxes
@@ -468,7 +489,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
             $items[] = (object) [
                 'itemId' => $item->get_product_id(),
-                'productName' => $item->get_name(),
+                'productName' => $name,
                 'productDescription' => $desc,
                 'quantity' => $qty,
                 'thumbnailUrl' => $thumbnailUrl ? esc_url($thumbnailUrl) : '',
@@ -479,7 +500,21 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         $subtotalAmount = $totalItemsAmount + $order->get_shipping_total();
+        $discountAmount = $order->get_discount_total();
+        $grandTotalAmount = $order->get_total();
+
+        $merchan_info = $this->getMerchanInfo();
+        $discount_percentage = $merchan_info['discountPercentage'];
+        $originalGrandTotalAmount = ($grandTotalAmount * 100) / (100 - $discount_percentage);
+        $criptoLoveDiscount = $originalGrandTotalAmount - $grandTotalAmount;
+        $originalDiscountAmount = 0;
+        if ($discountAmount > 0) {
+            $originalDiscountAmount = $discountAmount - $criptoLoveDiscount;
+        }
+
         $purchase_data = [
+            'version' => $this->purchase_data_version,
+            'zenkipayKey' => $this->zenkipay_key,
             'merchantOrderId' => $order_id,
             'shopperEmail' => !empty($order->get_billing_email()) ? $order->get_billing_email() : null,
             'items' => $items,
@@ -489,8 +524,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 'shipmentAmount' => round($order->get_shipping_total(), 2), // without taxes
                 'subtotalAmount' => round($subtotalAmount, 2), // without taxes
                 'taxesAmount' => round($order->get_total_tax(), 2),
-                'discountAmount' => round($order->get_discount_total(), 2),
-                'grandTotalAmount' => round($order->get_total(), 2),
+                'discountAmount' => round($originalDiscountAmount, 2),
+                'grandTotalAmount' => round($originalGrandTotalAmount, 2),
                 'localTaxesAmount' => 0,
                 'importCosts' => 0,
             ],
@@ -550,6 +585,40 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     }
 
     /**
+     * Decrypt message with RSA private key
+     *
+     * @param  base64_encoded string holds the encrypted message.
+     * @param  integer $chunk_size Chunking by bytes to feed to the decryptor algorithm (512).
+     *
+     * @return String decrypted message.
+     */
+    public function RSADecyrpt($encrypted_msg)
+    {
+        $ppk = openssl_pkey_get_private($this->rsa_private_key);
+        $encrypted_msg = base64_decode($encrypted_msg);
+
+        // Decrypt the data in the small chunks
+        $a_key = openssl_pkey_get_details($ppk);
+        $chunk_size = ceil($a_key['bits'] / 8);
+
+        $offset = 0;
+        $decrypted = '';
+
+        while ($offset < strlen($encrypted_msg)) {
+            $decrypted_chunk = '';
+            $chunk = substr($encrypted_msg, $offset, $chunk_size);
+
+            if (openssl_private_decrypt($chunk, $decrypted_chunk, $ppk)) {
+                $decrypted .= $decrypted_chunk;
+            } else {
+                throw new Exception('Problem decrypting the message');
+            }
+            $offset += $chunk_size;
+        }
+        return $decrypted;
+    }
+
+    /**
      * Get Merchan Info
      *
      * @return array
@@ -557,7 +626,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     public function getMerchanInfo()
     {
         $method = 'GET';
-        $url = $this->gateway_url.'/v1/merchants/plugin?pluginKey='.$this->zenkipay_key;
+        $url = $this->gateway_url . '/v1/merchants/plugin?pluginKey=' . $this->zenkipay_key;
         $result = $this->customRequest($url, $method, null);
 
         return json_decode($result, true);
