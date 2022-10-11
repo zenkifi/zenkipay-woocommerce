@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.6.11
+ * Version: 1.7.0
  */
 
 if (!defined('ABSPATH')) {
@@ -26,6 +26,7 @@ add_filter('woocommerce_thankyou_order_received_text', 'override_thankyou_text',
 add_filter('the_title', 'woo_title_order_received', 10, 2);
 add_action( 'woocommerce_checkout_process', 'addDiscount');
 add_filter('woocommerce_cart_totals_coupon_label', 'discountLabel', 10, 2);
+add_action('woocommerce_order_refunded', 'zenkipay_woocommerce_order_refunded', 10, 2);
 
 function zenkipay_init_gateway_class()
 {
@@ -86,7 +87,7 @@ add_action(
         $logger->info('Zenkipay - zenkipay_order_id => ' . $zenkipay_order_id);
         $logger->info('Zenkipay - tracking_number => ' . $tracking_number);
 
-        // Checks if we hace the required date to send the tracking number to Zenkipay
+        // Checks if we have the required data to send the tracking number to Zenkipay
         if (empty($zenkipay_order_id) || empty($tracking_number)) {
             return;
         }
@@ -120,6 +121,55 @@ function woo_title_order_received($title, $id)
     }
     return $title;
 }
+
+/**
+ * Capture a dispute when a refund was made
+ *
+ * @param type $order_id
+ * @param type $refund_id
+ *
+ */
+function zenkipay_woocommerce_order_refunded($order_id, $refund_id)
+{
+    $logger = wc_get_logger();
+    $logger->info('ORDER: ' . $order_id);
+    $logger->info('REFUND: ' . $refund_id);
+
+    $order = wc_get_order($order_id);
+    $refund = wc_get_order($refund_id);
+
+    $logger->info('get_payment_method: ' . $order->get_payment_method());
+
+    if ($order->get_payment_method() != 'zenkipay') {
+        return;
+    }
+
+    $transaction_id = get_post_meta($order_id, '_zenkipay_order_id', true);
+    $logger->info('_zenkipay_order_id: ' . $transaction_id);
+    if (!strlen($transaction_id)) {
+        return;
+    }
+
+    // $amount = floatval($refund->get_amount());
+    // $reason = $refund->get_reason();
+    $data = [
+        'title' => 'WooCommerce refund request #' . $order_id,
+        'description' => 'Refund request originated by WooCommerce.',
+        'orderId' => $transaction_id,
+    ];
+
+    try {
+        $zenkipay = new WC_Zenki_Gateway();
+        $zenkipay->createDispute($data);
+        $order->add_order_note('A dispute was created in Zenkipay');
+    } catch (Exception $e) {
+        $logger->error($e->getMessage());
+        $order->add_order_note('There was an error creating a dispute in Zenkipay: ' . $e->getMessage());
+    }
+
+    return;
+}
+
 
 function addDiscount() {
     // Obtenemos el valor del cripto love

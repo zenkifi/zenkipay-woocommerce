@@ -8,10 +8,6 @@ jQuery(document).ready(function () {
     var storeOrderId = zenkipay_payment_args.order_id;
 
     var purchaseOptions = {
-        style: {
-            shape: 'square',
-            theme: 'light',
-        },
         zenkipayKey,
         purchaseData,
         purchaseSignature,
