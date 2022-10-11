@@ -19,7 +19,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
     protected $rsa_private_key;
-    protected $webhook_signing_secret;    
+    protected $webhook_signing_secret;
     protected $plugin_version = '1.7.0';
     protected $purchase_data_version = 'v1.1.0';
     protected $gateway_url = 'https://prod-gateway.zenki.fi';
@@ -53,7 +53,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->zenkipay_key = $this->test_mode ? $this->test_plugin_key : $this->live_plugin_key;
         $this->rsa_private_key = $this->settings['rsa_private_key'];
         $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
-        
+
         add_action('wp_enqueue_scripts', [$this, 'load_scripts']);
         add_action('woocommerce_api_zenkipay_verify_payment', [$this, 'zenkipayVerifyPayment']);
 
@@ -91,6 +91,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 throw new Exception('Unable to decrypt data.');
             }
 
+            $this->logger->info('$decrypted_data => ' . $decrypted_data);
             $event = json_decode($decrypted_data);
             $payment = $event->eventDetails;
 
@@ -133,7 +134,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         if (isset($post_data[$test_mode_index]) && $post_data[$test_mode_index] == '1') {
             $mode = 'test';
         }
-        
+
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
         $this->test_mode = $mode == 'test';
 
@@ -504,8 +505,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         $merchan_info = $this->getMerchanInfo();
         $discount_percentage = $merchan_info['discountPercentage'];
-        $originalGrandTotalAmount = (($grandTotalAmount * 100) / (100 - $discount_percentage));
-        $criptoLoveDiscount = ($originalGrandTotalAmount - $grandTotalAmount);
+        $originalGrandTotalAmount = ($grandTotalAmount * 100) / (100 - $discount_percentage);
+        $criptoLoveDiscount = $originalGrandTotalAmount - $grandTotalAmount;
         $originalDiscountAmount = 0;
         if ($discountAmount > 0) {
             $originalDiscountAmount = $discountAmount - $criptoLoveDiscount;
@@ -625,7 +626,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     public function getMerchanInfo()
     {
         $method = 'GET';
-        $url = $this->gateway_url.'/v1/merchants/plugin?pluginKey='.$this->zenkipay_key;
+        $url = $this->gateway_url . '/v1/merchants/plugin?pluginKey=' . $this->zenkipay_key;
         $result = $this->customRequest($url, $method, null);
 
         return json_decode($result, true);
