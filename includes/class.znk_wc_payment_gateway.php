@@ -53,7 +53,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->zenkipay_key = $this->test_mode ? $this->test_plugin_key : $this->live_plugin_key;
         $this->rsa_private_key = $this->settings['rsa_private_key'];
         $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
-
         
         add_action('wp_enqueue_scripts', [$this, 'load_scripts']);
         add_action('woocommerce_api_zenkipay_verify_payment', [$this, 'zenkipayVerifyPayment']);
@@ -500,6 +499,18 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         $subtotalAmount = $totalItemsAmount + $order->get_shipping_total();
+        $discountAmount = $order->get_discount_total();
+        $grandTotalAmount = $order->get_total();
+
+        $merchan_info = $this->getMerchanInfo();
+        $discount_percentage = $merchan_info['discountPercentage'];
+        $originalGrandTotalAmount = (($grandTotalAmount * 100) / (100 - $discount_percentage));
+        $criptoLoveDiscount = ($originalGrandTotalAmount - $grandTotalAmount);
+        $originalDiscountAmount = 0;
+        if ($discountAmount > 0) {
+            $originalDiscountAmount = $discountAmount - $criptoLoveDiscount;
+        }
+
         $purchase_data = [
             'version' => $this->purchase_data_version,
             'zenkipayKey' => $this->zenkipay_key,
@@ -512,8 +523,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 'shipmentAmount' => round($order->get_shipping_total(), 2), // without taxes
                 'subtotalAmount' => round($subtotalAmount, 2), // without taxes
                 'taxesAmount' => round($order->get_total_tax(), 2),
-                'discountAmount' => round($order->get_discount_total(), 2),
-                'grandTotalAmount' => round($order->get_total(), 2),
+                'discountAmount' => round($originalDiscountAmount, 2),
+                'grandTotalAmount' => round($originalGrandTotalAmount, 2),
                 'localTaxesAmount' => 0,
                 'importCosts' => 0,
             ],
