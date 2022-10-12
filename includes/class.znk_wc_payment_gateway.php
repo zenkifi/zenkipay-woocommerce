@@ -44,7 +44,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         $this->title = __('Zenkipay', 'zenkipay');
         $this->description =
-            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
+            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://www.zenki.fi/shopper/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
 
         $this->enabled = $this->settings['enabled'];
         $this->test_mode = strcmp($this->settings['test_mode'], 'yes') == 0;
