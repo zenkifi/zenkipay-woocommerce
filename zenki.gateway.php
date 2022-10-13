@@ -176,27 +176,34 @@ function addDiscount() {
     $zenkipay = new WC_Zenki_Gateway();
     $merchan_info = $zenkipay->getMerchanInfo();
     $discount_percentage = $merchan_info['discountPercentage'];
-    
-    $totalAmount = WC()->cart->get_total('number');
-    $baseDiscount = ($totalAmount * $discount_percentage) / 100;
-    
-    $todate = date("dmyGis");
-    $coupon_code = 'criptolove'.$todate;
-    $coupon = new WC_Coupon();
-    $coupon->set_code($coupon_code); // Coupon code
-    $coupon->set_description( 'Cripto Love');
-    $coupon->set_amount($baseDiscount); //* Discount amount
-    $coupon->set_usage_limit( 1 ); // Times this coupon can be used
-    $coupon->set_usage_limit_per_user( 1 ); // Times this coupon can be used per user
-    $coupon->save();
 
-    $array_coupons = array($coupon_code);
+    if ( WC()->session ) {
+        $payment_method = WC()->session->get( 'chosen_payment_method' );
 
-    foreach ( WC()->cart->get_applied_coupons() as $code ) {
-        array_push($array_coupons, $code);
+        if ($payment_method === 'zenkipay' && $discount_percentage > 0) {
+            $totalAmount = WC()->cart->get_total('number');
+            $baseDiscount = ($totalAmount * $discount_percentage) / 100;
+            
+            $todate = date("dmyGis");
+            $coupon_code = 'criptolove'.$todate;
+            $coupon = new WC_Coupon();
+            $coupon->set_code($coupon_code); // Coupon code
+            $coupon->set_description( 'Cripto Love');
+            $coupon->set_amount($baseDiscount); //* Discount amount
+            $coupon->set_usage_limit( 1 ); // Times this coupon can be used
+            $coupon->set_usage_limit_per_user( 1 ); // Times this coupon can be used per user
+            $coupon->save();
+        
+            $array_coupons = array($coupon_code);
+        
+            foreach ( WC()->cart->get_applied_coupons() as $code ) {
+                array_push($array_coupons, $code);
+            }
+        
+            WC()->cart->set_applied_coupons($array_coupons);
+        }
     }
 
-    WC()->cart->set_applied_coupons($array_coupons);
 }
 
 function discountLabel($label, $coupon) {
