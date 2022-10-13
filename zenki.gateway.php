@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.7.0
+ * Version: 1.7.1
  */
 
 if (!defined('ABSPATH')) {
