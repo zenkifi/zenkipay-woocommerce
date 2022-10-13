@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.7.0';
+    protected $plugin_version = '1.7.1';
     protected $purchase_data_version = 'v1.1.0';
     protected $gateway_url = 'https://prod-gateway.zenki.fi';
     protected $api_url = 'https://api.zenki.fi';
