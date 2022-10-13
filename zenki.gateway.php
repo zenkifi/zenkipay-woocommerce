@@ -24,8 +24,7 @@ load_plugin_textdomain('zenkipay', false, dirname(plugin_basename(__FILE__)) . '
 add_action('plugins_loaded', 'zenkipay_init_gateway_class', 0);
 add_filter('woocommerce_thankyou_order_received_text', 'override_thankyou_text', 10, 2);
 add_filter('the_title', 'woo_title_order_received', 10, 2);
-add_action( 'woocommerce_checkout_process', 'addDiscount');
-add_filter('woocommerce_cart_totals_coupon_label', 'discountLabel', 10, 2);
+add_action('woocommerce_checkout_process', 'addDiscount');
 add_action('woocommerce_order_refunded', 'zenkipay_woocommerce_order_refunded', 10, 2);
 
 function zenkipay_init_gateway_class()
@@ -170,8 +169,8 @@ function zenkipay_woocommerce_order_refunded($order_id, $refund_id)
     return;
 }
 
-
-function addDiscount() {
+function addDiscount()
+{
     // Obtenemos el valor del cripto love
     $zenkipay = new WC_Zenki_Gateway();
     $merchan_info = $zenkipay->getMerchanInfo();
@@ -204,12 +203,4 @@ function addDiscount() {
         }
     }
 
-}
-
-function discountLabel($label, $coupon) {
-
-    if (strpos($coupon->code, 'criptolove') !== false) {
-        return __('Cripto Love');
-    }
-    return $label;
 }

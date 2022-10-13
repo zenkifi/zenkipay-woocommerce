@@ -19,7 +19,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $GATEWAY_NAME = 'Zenkipay';
     protected $test_mode = true;
     protected $rsa_private_key;
-    protected $webhook_signing_secret;    
+    protected $webhook_signing_secret;
     protected $plugin_version = '1.7.0';
     protected $purchase_data_version = 'v1.1.0';
     protected $gateway_url = 'https://prod-gateway.zenki.fi';
@@ -44,7 +44,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         $this->title = __('Zenkipay', 'zenkipay');
         $this->description =
-            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://zenki.fi/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
+            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://www.zenki.fi/shopper/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
 
         $this->enabled = $this->settings['enabled'];
         $this->test_mode = strcmp($this->settings['test_mode'], 'yes') == 0;
@@ -54,7 +54,6 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $this->rsa_private_key = $this->settings['rsa_private_key'];
         $this->webhook_signing_secret = $this->settings['webhook_signing_secret'];
 
-        
         add_action('wp_enqueue_scripts', [$this, 'load_scripts']);
         add_action('woocommerce_api_zenkipay_verify_payment', [$this, 'zenkipayVerifyPayment']);
 
@@ -92,6 +91,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 throw new Exception('Unable to decrypt data.');
             }
 
+            $this->logger->info('$decrypted_data => ' . $decrypted_data);
             $event = json_decode($decrypted_data);
             $payment = $event->eventDetails;
 
@@ -134,7 +134,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         if (isset($post_data[$test_mode_index]) && $post_data[$test_mode_index] == '1') {
             $mode = 'test';
         }
-        
+
         $this->zenkipay_key = $post_data['woocommerce_' . $this->id . '_' . $mode . '_plugin_key'];
         $this->test_mode = $mode == 'test';
 
@@ -500,6 +500,18 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         }
 
         $subtotalAmount = $totalItemsAmount + $order->get_shipping_total();
+        $discountAmount = $order->get_discount_total();
+        $grandTotalAmount = $order->get_total();
+
+        $merchan_info = $this->getMerchanInfo();
+        $discount_percentage = $merchan_info['discountPercentage'];
+        $originalGrandTotalAmount = ($grandTotalAmount * 100) / (100 - $discount_percentage);
+        $criptoLoveDiscount = $originalGrandTotalAmount - $grandTotalAmount;
+        $originalDiscountAmount = 0;
+        if ($discountAmount > 0) {
+            $originalDiscountAmount = $discountAmount - $criptoLoveDiscount;
+        }
+
         $purchase_data = [
             'version' => $this->purchase_data_version,
             'zenkipayKey' => $this->zenkipay_key,
@@ -512,8 +524,8 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
                 'shipmentAmount' => round($order->get_shipping_total(), 2), // without taxes
                 'subtotalAmount' => round($subtotalAmount, 2), // without taxes
                 'taxesAmount' => round($order->get_total_tax(), 2),
-                'discountAmount' => round($order->get_discount_total(), 2),
-                'grandTotalAmount' => round($order->get_total(), 2),
+                'discountAmount' => round($originalDiscountAmount, 2),
+                'grandTotalAmount' => round($originalGrandTotalAmount, 2),
                 'localTaxesAmount' => 0,
                 'importCosts' => 0,
             ],
@@ -614,7 +626,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     public function getMerchanInfo()
     {
         $method = 'GET';
-        $url = $this->gateway_url.'/v1/merchants/plugin?pluginKey='.$this->zenkipay_key;
+        $url = $this->gateway_url . '/v1/merchants/plugin?pluginKey=' . $this->zenkipay_key;
         $result = $this->customRequest($url, $method, null);
 
         return json_decode($result, true);
