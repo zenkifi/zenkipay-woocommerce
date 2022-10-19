@@ -6,7 +6,7 @@
  * Author: Zenki
  * Author URI: https://zenki.fi/
  * Text Domain: zenkipay
- * Version: 1.7.1
+ * Version: 1.7.2
  */
 
 if (!defined('ABSPATH')) {
@@ -176,31 +176,30 @@ function addDiscount()
     $merchan_info = $zenkipay->getMerchanInfo();
     $discount_percentage = $merchan_info['discountPercentage'];
 
-    if ( WC()->session ) {
-        $payment_method = WC()->session->get( 'chosen_payment_method' );
+    if (WC()->session) {
+        $payment_method = WC()->session->get('chosen_payment_method');
 
         if ($payment_method === 'zenkipay' && $discount_percentage > 0) {
             $totalAmount = WC()->cart->get_total('number');
             $baseDiscount = ($totalAmount * $discount_percentage) / 100;
-            
-            $todate = date("dmyGis");
-            $coupon_code = 'criptolove'.$todate;
+
+            $todate = date('dmyGis');
+            $coupon_code = 'criptolove' . $todate;
             $coupon = new WC_Coupon();
             $coupon->set_code($coupon_code); // Coupon code
-            $coupon->set_description( 'Cripto Love');
+            $coupon->set_description('Cripto Love');
             $coupon->set_amount($baseDiscount); //* Discount amount
-            $coupon->set_usage_limit( 1 ); // Times this coupon can be used
-            $coupon->set_usage_limit_per_user( 1 ); // Times this coupon can be used per user
+            $coupon->set_usage_limit(1); // Times this coupon can be used
+            $coupon->set_usage_limit_per_user(1); // Times this coupon can be used per user
             $coupon->save();
-        
-            $array_coupons = array($coupon_code);
-        
-            foreach ( WC()->cart->get_applied_coupons() as $code ) {
+
+            $array_coupons = [$coupon_code];
+
+            foreach (WC()->cart->get_applied_coupons() as $code) {
                 array_push($array_coupons, $code);
             }
-        
+
             WC()->cart->set_applied_coupons($array_coupons);
         }
     }
-
 }
