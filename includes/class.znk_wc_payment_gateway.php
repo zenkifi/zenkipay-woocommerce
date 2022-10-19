@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.7.1';
+    protected $plugin_version = '1.7.2';
     protected $purchase_data_version = 'v1.1.0';
     protected $gateway_url = 'https://prod-gateway.zenki.fi';
     protected $api_url = 'https://api.zenki.fi';
@@ -44,7 +44,12 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         $this->title = __('Zenkipay', 'zenkipay');
         $this->description =
-            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') . ' <a href="' . esc_url('https://www.zenki.fi/shopper/') . '" target="_blanck">' . __('secured', 'zenkipay') . '</a>.';
+            __('Pay with cryptos… any wallet, any coin!. Transaction 100%', 'zenkipay') .
+            ' <a href="' .
+            esc_url('https://www.zenki.fi/shopper/') .
+            '" target="_blanck">' .
+            __('secured', 'zenkipay') .
+            '</a>.';
 
         $this->enabled = $this->settings['enabled'];
         $this->test_mode = strcmp($this->settings['test_mode'], 'yes') == 0;
@@ -96,7 +101,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             $payment = $event->eventDetails;
 
             if ($payment->transactionStatus != 'COMPLETED' || !$payment->merchantOrderId) {
-                throw new Exception('Transaction status is no tcompleted or merchantOrderId is empty.');
+                throw new Exception('Transaction status is not completed or merchantOrderId is empty.');
             }
 
             $order_id = $payment->merchantOrderId;
@@ -470,6 +475,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $items = [];
         $cb_url = $order->get_view_order_url();
         $failed_url = esc_url(WC()->api_request_url('zenkipay_verify_payment'));
+        $service_types = [];
 
         foreach ($order->get_items() as $item) {
             // Get an instance of corresponding the WC_Product object
@@ -497,6 +503,9 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
             ];
 
             $totalItemsAmount += $product_price * $qty;
+
+            $service_type = $product->is_virtual() || $product->is_downloadable() ? 'SERVICE' : 'GOOD';
+            array_push($service_types, $service_type);
         }
 
         $subtotalAmount = $totalItemsAmount + $order->get_shipping_total();
@@ -515,6 +524,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $purchase_data = [
             'version' => $this->purchase_data_version,
             'zenkipayKey' => $this->zenkipay_key,
+            'serviceType' => $this->getServiceType($service_types),
             'merchantOrderId' => $order_id,
             'shopperEmail' => !empty($order->get_billing_email()) ? $order->get_billing_email() : null,
             'items' => $items,
@@ -630,6 +640,25 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
         $result = $this->customRequest($url, $method, null);
 
         return json_decode($result, true);
+    }
+
+    /**
+     * Get service type
+     *
+     * @param array $service_types
+     *
+     * @return string
+     */
+    protected function getServiceType($service_types)
+    {
+        $needles = ['GOOD', 'SERVICE'];
+        if (empty(array_diff($needles, $service_types))) {
+            return 'HYBRID';
+        } elseif (in_array('GOOD', $service_types)) {
+            return 'GOOD';
+        } else {
+            return 'SERVICE';
+        }
     }
 }
 ?>
