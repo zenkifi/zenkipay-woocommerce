@@ -20,7 +20,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
     protected $test_mode = true;
     protected $rsa_private_key;
     protected $webhook_signing_secret;
-    protected $plugin_version = '1.7.2';
+    protected $plugin_version = '1.7.3';
     protected $purchase_data_version = 'v1.1.0';
     protected $gateway_url = 'https://prod-gateway.zenki.fi';
     protected $api_url = 'https://api.zenki.fi';
@@ -543,7 +543,7 @@ class WC_Zenki_Gateway extends WC_Payment_Gateway
 
         $payload = json_encode($purchase_data);
         $signature = $this->generateSignature($payload);
-
+        $this->logger->info('Zenkipay - payload => ' . $payload);
         return [
             'zenkipay_key' => $this->zenkipay_key,
             'purchase_data' => $payload,
